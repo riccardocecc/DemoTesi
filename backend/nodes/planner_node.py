@@ -6,6 +6,15 @@ from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 
 from backend.models.state import State
+# User Question
+#     ↓
+# [ChatPromptTemplate] → Crea prompt con system instructions + format instructions
+#     ↓
+# [LLM (Gemini)] → Genera piano in formato JSON
+#     ↓
+# [PydanticOutputParser] → Valida e converte in ExecutionPlan object
+#     ↓
+# ExecutionPlan (typed, validated)
 
 
 class AgentTask(BaseModel):
