@@ -11,7 +11,16 @@ google_api_key = os.getenv("GOOGLE_API")
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
-    google_api_key=google_api_key
+    google_api_key=google_api_key,
+    temperature=0,
+    max_output_tokens=4048
+)
+
+llm_query = ChatGoogleGenerativeAI(
+    model="gemini-2.0-flash-exp",
+    google_api_key=google_api_key,
+    temperature=0,
+    max_output_tokens=2048,
 )
 
 

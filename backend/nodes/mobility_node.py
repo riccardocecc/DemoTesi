@@ -62,10 +62,12 @@ def mobility_node(mobility_agent):
             "data": agent_data
         }
         print(f"DEBUG - Mobility agent response type: {type(structured_response['data'])}")
-
+        completed_tasks = state.get("completed_tasks", set())
+        completed_tasks.add(task)
         return Command(
             update={
                 "structured_responses":  state.get("structured_responses", []) + [structured_response],
+                "completed_tasks": completed_tasks,  # ← AGGIUNGI
                 "messages": [HumanMessage(content=task)]
             },
             goto="supervisor",

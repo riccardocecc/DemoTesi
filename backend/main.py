@@ -1,7 +1,7 @@
 from backend.config.settings import llm
 from backend.graph.builder import build_graph
 
-serenade_graph = build_graph(llm)
+serenade_graph = build_graph()
 
 
 def run_demo(question: str, max_iterations: int = 10):
@@ -42,4 +42,4 @@ def run_demo(question: str, max_iterations: int = 10):
 
 
 if __name__ == "__main__":
-    run_demo("Come ha dormito  il soggetto 2 nell'ultima settimana?")
+    run_demo("Come ha dormito come ha cucinato e in quali stanze è stato di più il soggetto 2 nell'ultima settimana?")

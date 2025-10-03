@@ -3,105 +3,97 @@ from langgraph.types import Command
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langgraph.graph import END
 
-from backend.models.state import State, SupervisorRouter
+from backend.models.state import State
 
 
 def make_supervisor_node(llm, members: list[str]):
-    options = ["FINISH"] + members
-    system_prompt = (
-        f"You are a smart supervisor coordinating these specialized agents: {members}.\n\n"
-        f"AGENTS:\n"
-        f"- sleep_agent: analyzes ONLY sleep\n"
-        f"- kitchen_agent: analyzes ONLY the kitchen\n"
-        f"- mobility_agent: analyzes ONLY mobility\n\n"
-        f"IMPORTANT: Agents return PYTHON TypedDict data (AgentResponse) with this structure:\n"
-        f'{{"task": "description of the task", "agent_name": "<agent_name>", "data": {{structured data (TypedDict)}}}}\n\n'
-        f"When synthesizing responses, interpret the TypedDicts and create a readable answer for the user.\n\n"
-        f"RULES:\n"
-        f"1. Identify which agents are needed for the question\n"
-        f"2. Call ONE agent at a time\n"
-        f"3. For each agent, write in the 'task' field ONLY the part of the question that concerns it\n"
-        f"4. IMPORTANT: If the question mentions a time period (e.g., 'last 20 days', 'last month', 'from X to Y'), "
-        f"YOU MUST include it in the agent's task\n"
-        f"5. Check which tasks are already completed before assigning new ones\n"
-        f"6. Go to FINISH only when ALL necessary tasks have been completed\n\n"
-        f"EXAMPLE:\n"
-        f"Question: 'How did subject 1 sleep and cook in the last month?'\n"
-        f"- First step: next='sleep_node', task='Analyze how subject 1 slept in the last month'\n"
-        f"- Second step: next='kitchen_node', task='Analyze how subject 1 cooked in the last month'\n"
-        f"- Third step: next='FINISH' (all tasks completed)\n"
-    )
+    """
+    Supervisor deterministico che segue l'execution plan.
+    Non usa l'LLM per il routing, solo per la sintesi finale.
+    """
 
     def supervisor_node(state: State) -> Command[Literal[*members, "__end__"]]:
-        # Estrai tutti i task completati
-        completed_tasks = set()
-        structured_responses = state.get("structured_responses", [])
+        print(f"\n{'=' * 60}")
+        print("SUPERVISOR - Processing state")
+        print(f"{'=' * 60}")
 
-        for response in structured_responses:
-            task = response.get("task", "").strip()
-            if task:
-                completed_tasks.add(task)
+        # Ottieni l'execution plan
+        execution_plan = state.get("execution_plan")
 
-        print(f"DEBUG - Tasks already completed: {completed_tasks}")
-
-        # Costruisci i messaggi
-        messages = [SystemMessage(content=system_prompt)]
-
-        for msg in state["messages"]:
-            messages.append(msg)
-
-        # Informa il supervisore sui task completati
-        if completed_tasks:
-            completion_info = "COMPLETED TASKS:\n" + "\n".join([f"- {task}" for task in completed_tasks])
-            completion_info += "\n\nDo NOT assign these exact tasks again. If all required tasks are done, go to FINISH."
-            messages.append(HumanMessage(content=completion_info))
-
-        response = llm.with_structured_output(SupervisorRouter).invoke(messages)
-        goto = response["next"]
-        task_description = response.get("task", "").strip()
-
-        print(f"DEBUG - Supervisor decision: goto={goto}, task={task_description}")
-
-        # Verifica se il task è già stato completato
-        if task_description in completed_tasks:
-            print(f"WARNING - Task '{task_description}' already completed, going to FINISH")
-            goto = "FINISH"
-
-        if goto == "FINISH":
-            original_question = state["messages"][0].content if state["messages"] else ""
-            synthesis_prompt = (
-                f"Original question: {original_question}\n\n"
-                f"Structured data received from agents:\n{state.get('structured_responses', [])}\n\n"
-                f"INSTRUCTIONS:\n"
-                f"1. Interpret the TypedDicts received from each agent\n"
-                f"2. Interpret numbers and metrics in an understandable way\n"
-                f"3. Provide a complete, clear, and readable answer that addresses the original question\n"
-                f"4. Highlight trends or changes if any\n"
-                f"5. Use natural and accessible language"
-            )
-
-            synthesis_messages = [
-                SystemMessage(
-                    content="You are an assistant receiving structured data from various agents and synthesizing it into an answer for the user."),
-                HumanMessage(content=synthesis_prompt)
-            ]
-            final_response = llm.invoke(synthesis_messages)
-            final_content = final_response.content
-
+        if not execution_plan:
+            print("ERROR - No execution plan found!")
             return Command(
                 goto=END,
                 update={
-                    "messages": [AIMessage(content=final_content, name="supervisor")],
+                    "messages": [AIMessage(content="Errore: nessun piano di esecuzione trovato.", name="supervisor")],
                     "next": "FINISH"
                 }
             )
 
-        # Assegna il task all'agente selezionato
+        # Ottieni task completati
+        completed_tasks = state.get("completed_tasks", set())
+        print(f"Completed tasks: {completed_tasks}")
+
+        # Trova il prossimo task da eseguire
+        next_task = execution_plan.get_next_task(completed_tasks)
+
+        if next_task is None:
+            # Tutti i task completati → sintetizza risposta finale CON LLM
+            print("All tasks completed - Synthesizing final answer")
+
+            original_question = state.get("original_question", "")
+            structured_responses = state.get("structured_responses", [])
+
+            # QUI usiamo l'LLM per la sintesi
+            synthesis_prompt = (
+                f"Domanda originale: {original_question}\n\n"
+                f"Dati strutturati ricevuti dagli agenti:\n"
+            )
+
+            for resp in structured_responses:
+                synthesis_prompt += f"\n{resp['agent_name']}:\n{resp['data']}\n"
+
+            synthesis_prompt += (
+                f"\nISTRUZIONI:\n"
+                f"1. Interpreta i dati TypedDict ricevuti da ogni agente\n"
+                f"2. Fornisci una risposta completa, chiara e leggibile in italiano\n"
+                f"3. Evidenzia trend o cambiamenti se presenti\n"
+                f"4. Usa un linguaggio naturale e accessibile\n"
+                f"5. Rispondi direttamente alla domanda originale\n"
+                f"6. Se ci sono metriche numeriche, spiegale in modo comprensibile"
+            )
+
+            synthesis_messages = [
+                SystemMessage(content=(
+                    "Sei un assistente esperto nell'analizzare dati sanitari. "
+                    "Ricevi dati strutturati (TypedDict) da agenti specializzati e li trasformi "
+                    "in risposte chiare e comprensibili per l'utente finale. "
+                    "Usa un tono professionale ma accessibile."
+                )),
+                HumanMessage(content=synthesis_prompt)
+            ]
+
+            final_response = llm.invoke(synthesis_messages)
+
+            print(f"\nFINAL ANSWER:\n{final_response.content}")
+
+            return Command(
+                goto=END,
+                update={
+                    "messages": [AIMessage(content=final_response.content, name="supervisor")],
+                    "next": "FINISH"
+                }
+            )
+
+        # Assegna il prossimo task (deterministico, senza LLM)
+        print(f"\nAssigning task to {next_task.agent}:")
+        print(f"  Task: {next_task.instruction}")
+
         return Command(
-            goto=goto,
+            goto=next_task.agent,
             update={
-                "messages": [HumanMessage(content=f"[TASK]: {task_description}", name="supervisor_instruction")],
-                "next": goto
+                "messages": [HumanMessage(content=f"[TASK]: {next_task.instruction}", name="supervisor_instruction")],
+                "next": next_task.agent
             }
         )
 

@@ -63,10 +63,12 @@ def sleep_node(sleep_agent):
         }
 
         print(f"DEBUG - Sleep agent response type: {type(structured_response['data'])}")
-
+        completed_tasks = state.get("completed_tasks", set())
+        completed_tasks.add(task)
         return Command(
             update={
                 "structured_responses": state.get("structured_responses", []) + [structured_response],
+                "completed_tasks": completed_tasks,
                 "messages": [HumanMessage(content=task)]  # ✅ CORRETTO
             },
             goto="supervisor"

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from langgraph.graph import MessagesState
 from typing_extensions import TypedDict, Literal
-
+from typing import Any
 from backend.models.results import SleepAnalysisResult, KitchenAnalysisResult,MobilityAnalysisResult,ErrorResult
+
+
 
 
 class AgentResponse(TypedDict):
@@ -24,3 +26,5 @@ class State(MessagesState):
     next: str
     original_question: str
     structured_responses: list[AgentResponse]
+    execution_plan: Any # ← AGGIUNGI
+    completed_tasks: set[str]  # ← AGGIUNGI (opzionale ma utile)
