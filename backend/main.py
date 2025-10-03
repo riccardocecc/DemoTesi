@@ -1,8 +1,7 @@
-from backend.config.settings import llm
+
 from backend.graph.builder import build_graph
 
-serenade_graph = build_graph()
-
+graph = build_graph()
 
 def run_demo(question: str, max_iterations: int = 10):
     """
@@ -13,7 +12,7 @@ def run_demo(question: str, max_iterations: int = 10):
 
     final_response = None
 
-    for s in serenade_graph.stream(
+    for s in graph.stream(
             {"messages": [("user", question)]},
             {"recursion_limit": max_iterations},
     ):
@@ -42,4 +41,21 @@ def run_demo(question: str, max_iterations: int = 10):
 
 
 if __name__ == "__main__":
+    # Salva l'immagine su file
+    #png_data = graph.get_graph().draw_mermaid_png()
+    #with open("graph.png", "wb") as f:
+     #   f.write(png_data)
+
+    #print("Grafo salvato come 'graph.png'")
+
+    # Opzionalmente, apri l'immagine automaticamente
+    #import os
+    #import platform
+
+    #if platform.system() == 'Darwin':  # macOS
+     #   os.system('open grafo_serenade.png')
+    #elif platform.system() == 'Windows':
+     ##   os.system('start grafo_serenade.png')
+    #else:  # Linux
+       # os.system('xdg-open grafo_serenade.png')
     run_demo("Come ha dormito come ha cucinato e in quali stanze è stato di più il soggetto 2 nell'ultima settimana?")

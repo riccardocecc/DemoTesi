@@ -8,7 +8,7 @@ from plotly.subplots import make_subplots
 # Configurazione della pagina
 st.set_page_config(
     page_title="Demo Multi Agent LLM",
-    page_icon="🤖",
+    page_icon="",
     layout="wide"
 )
 
@@ -16,39 +16,30 @@ st.set_page_config(
 BACKEND_URL = "http://localhost:8000"
 
 # Titolo
-st.title("🤖 Demo Multi Agent LLM")
+st.title("Demo Multi Agent LLM")
 st.markdown("---")
 
 # Sidebar per configurazioni
 with st.sidebar:
-    st.header("⚙️ Configurazioni")
-    max_iterations = st.slider(
-        "Iterazioni massime",
-        min_value=5,
-        max_value=50,
-        value=10,
-        step=5
-    )
-
-    st.markdown("---")
+    st.header("Configurazioni")
 
     # Health check
-    if st.button("🔍 Verifica Connessione"):
+    if st.button("Verifica Connessione"):
         try:
             response = requests.get(f"{BACKEND_URL}/health", timeout=5)
             if response.status_code == 200:
-                st.success("✅ Backend connesso!")
+                st.success("Backend connesso!")
             else:
-                st.error("❌ Backend non disponibile")
+                st.error("Backend non disponibile")
         except Exception as e:
-            st.error(f"❌ Errore di connessione: {str(e)}")
+            st.error(f"Errore di connessione: {str(e)}")
 
 
 # Funzioni per creare grafici
 def create_sleep_charts(data):
     """Crea grafici per i dati del sonno"""
     if "error" in data:
-        st.error(f"❌ {data['error']}")
+        st.error(f"{data['error']}")
         return
 
     # Metriche principali
@@ -136,7 +127,7 @@ def create_sleep_charts(data):
 def create_kitchen_charts(data):
     """Crea grafici per i dati della cucina"""
     if "error" in data:
-        st.error(f"❌ {data['error']}")
+        st.error(f"{data['error']}")
         return
 
     # Metriche principali
@@ -226,7 +217,7 @@ def create_kitchen_charts(data):
 def create_mobility_charts(data):
     """Crea grafici per i dati della mobilità"""
     if "error" in data:
-        st.error(f"❌ {data['error']}")
+        st.error(f"{data['error']}")
         return
 
     # Metriche principali
@@ -253,18 +244,6 @@ def create_mobility_charts(data):
                 'Rilevazioni': list(room_dist.values()),
                 'Percentuale': [room_pct.get(room, 0) for room in room_dist.keys()]
             })
-
-            # Mappa emoji per stanze
-            emoji_map = {
-                'cucina': '🍳',
-                'soggiorno': '🛋️',
-                'camera_letto': '🛏️',
-                'bagno': '🚿',
-                'ingresso': '🚪'
-            }
-            room_df['Label'] = room_df['Stanza'].apply(
-                lambda x: f"{emoji_map.get(x, '📍')} {x.replace('_', ' ').title()}"
-            )
 
             fig = px.bar(room_df, x='Stanza', y='Rilevazioni',
                          text='Percentuale',
@@ -339,7 +318,7 @@ def create_mobility_charts(data):
 
 # Input della domanda
 question = st.text_area(
-    "💬 Domanda:",
+    "Domanda:",
     placeholder="Es: Come ha dormito e come ha cucinato il soggetto 2 nell'ultima settimana?",
     height=100
 )
@@ -347,22 +326,30 @@ question = st.text_area(
 # Bottone per inviare la query
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
-    submit_button = st.button("🚀 Invia", use_container_width=True, type="primary")
+    st.markdown("""
+           <style>
+           div.stButton > button:first-child {
+               background-color: #374957;
+               color: white;
+           }
+           </style>
+           """, unsafe_allow_html=True)
+    submit_button = st.button("Invia", use_container_width=True)
 
 # Gestione della risposta
 if submit_button:
     if not question.strip():
-        st.warning("⚠️ Inserisci una domanda prima di inviare!")
+        st.warning("Inserisci una domanda prima di inviare!")
     else:
         # Mostra spinner durante il caricamento
-        with st.spinner("🔄 Elaborazione in corso..."):
+        with st.spinner("Elaborazione in corso..."):
             try:
                 # Chiamata al backend
                 response = requests.post(
                     f"{BACKEND_URL}/query",
                     json={
                         "question": question,
-                        "max_iterations": max_iterations
+                        "max_iterations": 10
                     },
                     timeout=120
                 )
@@ -370,91 +357,53 @@ if submit_button:
                 if response.status_code == 200:
                     data = response.json()
 
-                    # Tab per organizzare i contenuti
-                    tab1, tab2, tab3 = st.tabs(["📊 Risposta e Grafici", "🔍 Dettagli Agenti", "📋 JSON Completo"])
+                    st.subheader("Risposta Finale")
+                    st.markdown(data["answer"])
 
-                    with tab1:
-                        st.subheader("📝 Domanda")
-                        st.info(data["question"])
+                    # Grafici per ogni agente
+                    if data.get("structured_responses"):
+                        st.markdown("---")
 
-                        st.subheader("💡 Risposta Finale")
-                        st.markdown(data["answer"])
+                        for response in data["structured_responses"]:
+                            agent_name = response.get("agent_name", "Unknown")
+                            agent_data = response.get("data", {})
 
-                        # Grafici per ogni agente
-                        if data.get("structured_responses"):
+                            # Mappa titoli
+                            agent_info = {
+                                "sleep_agent": ("Analisi del Sonno", "#FF6B6B"),
+                                "kitchen_agent": ("Analisi Attività Cucina", "#FFA500"),
+                                "mobility_agent": ("Analisi Mobilità", "#4ECDC4")
+                            }
+
+                            title, color = agent_info.get(agent_name, ("Analisi", "#808080"))
+
+                            st.markdown(f"### {title}")
+
+                            # Crea grafici specifici per tipo di agente
+                            if agent_name == "sleep_agent":
+                                create_sleep_charts(agent_data)
+                            elif agent_name == "kitchen_agent":
+                                create_kitchen_charts(agent_data)
+                            elif agent_name == "mobility_agent":
+                                create_mobility_charts(agent_data)
+
                             st.markdown("---")
-                            st.header("📊 Analisi Dettagliata")
-
-                            for response in data["structured_responses"]:
-                                agent_name = response.get("agent_name", "Unknown")
-                                agent_data = response.get("data", {})
-
-                                # Mappa titoli e emoji
-                                agent_info = {
-                                    "sleep_agent": ("😴 Analisi del Sonno", "#FF6B6B"),
-                                    "kitchen_agent": ("🍳 Analisi Attività Cucina", "#FFA500"),
-                                    "mobility_agent": ("🚶 Analisi Mobilità", "#4ECDC4")
-                                }
-
-                                title, color = agent_info.get(agent_name, ("🤖 Analisi", "#808080"))
-
-                                st.markdown(f"### {title}")
-
-                                # Crea grafici specifici per tipo di agente
-                                if agent_name == "sleep_agent":
-                                    create_sleep_charts(agent_data)
-                                elif agent_name == "kitchen_agent":
-                                    create_kitchen_charts(agent_data)
-                                elif agent_name == "mobility_agent":
-                                    create_mobility_charts(agent_data)
-
-                                st.markdown("---")
-
-                    with tab2:
-                        st.subheader("🔍 Risposte Strutturate degli Agenti")
-
-                        if data.get("structured_responses"):
-                            for idx, response in enumerate(data["structured_responses"], 1):
-                                agent_name = response.get("agent_name", "Unknown")
-                                task = response.get("task", "N/A")
-                                agent_data = response.get("data", {})
-
-                                emoji_map = {
-                                    "sleep_agent": "😴",
-                                    "kitchen_agent": "🍳",
-                                    "mobility_agent": "🚶"
-                                }
-                                emoji = emoji_map.get(agent_name, "🤖")
-
-                                with st.expander(f"{emoji} {agent_name.replace('_', ' ').title()} - Analisi {idx}",
-                                                 expanded=True):
-                                    st.markdown(f"**Task:** {task}")
-
-                                    if "error" in agent_data:
-                                        st.error(f"❌ {agent_data['error']}")
-                                    else:
-                                        st.json(agent_data)
-
-                    with tab3:
-                        st.subheader("📋 Risposta JSON Completa")
-                        st.json(data)
 
                 else:
-                    st.error(f"❌ Errore {response.status_code}: {response.text}")
+                    st.error(f"Errore {response.status_code}: {response.text}")
 
             except requests.exceptions.Timeout:
-                st.error("⏱️ Timeout: Il backend sta impiegando troppo tempo a rispondere.")
+                st.error("Timeout: Il backend sta impiegando troppo tempo a rispondere.")
             except requests.exceptions.ConnectionError:
-                st.error(
-                    "🔌 Errore di connessione: Assicurati che il backend sia in esecuzione su http://localhost:8000")
+                st.error("Errore di connessione: Assicurati che il backend sia in esecuzione su http://localhost:8000")
             except Exception as e:
-                st.error(f"❌ Errore imprevisto: {str(e)}")
+                st.error(f"Errore imprevisto: {str(e)}")
 
 # Footer
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: gray;'>"
-    "Made with ❤️ by @RiccardoCeccarani"
+    "@RiccardoCeccarani"
     "</div>",
     unsafe_allow_html=True
 )
