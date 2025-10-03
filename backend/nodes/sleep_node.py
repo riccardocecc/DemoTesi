@@ -25,26 +25,49 @@ def sleep_node(sleep_agent):
                 task = msg.content.replace("[TASK]: ", "")
                 break
 
-        # Invoca agent
-        result = sleep_agent.invoke({"messages": [HumanMessage(content=task)]})
+        print(f"DEBUG - Sleep agent received task: '{task}'")
+        message = task or "Analizza il sonno del soggetto richiesto."
+
+        # Invoca agent con focused_state
+        focused_state = {"messages": [HumanMessage(content=message)]}
+        result = sleep_agent.invoke(focused_state)
+        print("result " + str(result))
 
         # Estrai dati strutturati
-        agent_data = None
+        agent_data: SleepAnalysisResult | ErrorResult | None = None
         for msg in result["messages"]:
             if isinstance(msg, ToolMessage):
-                agent_data = msg.content if isinstance(msg.content, dict) else json.loads(msg.content)
+                if isinstance(msg.content, dict):
+                    raw_data = msg.content
+                elif isinstance(msg.content, str):
+                    try:
+                        raw_data = json.loads(msg.content)
+                    except json.JSONDecodeError:
+                        raw_data = {"error": "JSON parsing failed"}
+                else:
+                    raw_data = {"error": f"Formato risposta non valido: {type(msg.content)}"}
+
+                if "error" in raw_data:
+                    agent_data = raw_data
+                else:
+                    agent_data = raw_data
                 break
 
+        if not agent_data:
+            agent_data = {"error": "Nessuna risposta dall'agente sleep"}
+
         structured_response: AgentResponse = {
-            "task": task,
+            "task": message,
             "agent_name": "sleep_agent",
             "data": agent_data
         }
 
+        print(f"DEBUG - Sleep agent response type: {type(structured_response['data'])}")
+
         return Command(
             update={
                 "structured_responses": state.get("structured_responses", []) + [structured_response],
-                "messages": [HumanMessage(content=f"{task}, completed")]
+                "messages": [HumanMessage(content=task)]  # ✅ CORRETTO
             },
             goto="supervisor"
         )

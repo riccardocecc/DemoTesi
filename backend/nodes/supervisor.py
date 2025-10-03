@@ -1,6 +1,6 @@
 from typing import Literal
 from langgraph.types import Command
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langgraph.graph import END
 
 from backend.models.state import State, SupervisorRouter
@@ -23,23 +23,49 @@ def make_supervisor_node(llm, members: list[str]):
         f"3. For each agent, write in the 'task' field ONLY the part of the question that concerns it\n"
         f"4. IMPORTANT: If the question mentions a time period (e.g., 'last 20 days', 'last month', 'from X to Y'), "
         f"YOU MUST include it in the agent's task\n"
-        f"5. Do NOT repeat agents already called\n"
-        f"6. Go to FINISH only when ALL necessary agents have responded\n\n"
-        f"7. A task is COMPLETED when it has 'completed' associated\n"
+        f"5. Check which tasks are already completed before assigning new ones\n"
+        f"6. Go to FINISH only when ALL necessary tasks have been completed\n\n"
         f"EXAMPLE:\n"
         f"Question: 'How did subject 1 sleep and cook in the last month?'\n"
         f"- First step: next='sleep_node', task='Analyze how subject 1 slept in the last month'\n"
         f"- Second step: next='kitchen_node', task='Analyze how subject 1 cooked in the last month'\n"
+        f"- Third step: next='FINISH' (all tasks completed)\n"
     )
 
     def supervisor_node(state: State) -> Command[Literal[*members, "__end__"]]:
+        # Estrai tutti i task completati
+        completed_tasks = set()
+        structured_responses = state.get("structured_responses", [])
 
-        messages = [{"role": "system", "content": system_prompt}] + state["messages"]
+        for response in structured_responses:
+            task = response.get("task", "").strip()
+            if task:
+                completed_tasks.add(task)
+
+        print(f"DEBUG - Tasks already completed: {completed_tasks}")
+
+        # Costruisci i messaggi
+        messages = [SystemMessage(content=system_prompt)]
+
+        for msg in state["messages"]:
+            messages.append(msg)
+
+        # Informa il supervisore sui task completati
+        if completed_tasks:
+            completion_info = "COMPLETED TASKS:\n" + "\n".join([f"- {task}" for task in completed_tasks])
+            completion_info += "\n\nDo NOT assign these exact tasks again. If all required tasks are done, go to FINISH."
+            messages.append(HumanMessage(content=completion_info))
+
         response = llm.with_structured_output(SupervisorRouter).invoke(messages)
         goto = response["next"]
-        task_description = response.get("task", "")
+        task_description = response.get("task", "").strip()
 
         print(f"DEBUG - Supervisor decision: goto={goto}, task={task_description}")
+
+        # Verifica se il task è già stato completato
+        if task_description in completed_tasks:
+            print(f"WARNING - Task '{task_description}' already completed, going to FINISH")
+            goto = "FINISH"
 
         if goto == "FINISH":
             original_question = state["messages"][0].content if state["messages"] else ""
@@ -55,8 +81,9 @@ def make_supervisor_node(llm, members: list[str]):
             )
 
             synthesis_messages = [
-                {"role": "system", "content": "You are an assistant receiving structured data from various agents and synthesizing it into an answer for the user."},
-                {"role": "user", "content": synthesis_prompt}
+                SystemMessage(
+                    content="You are an assistant receiving structured data from various agents and synthesizing it into an answer for the user."),
+                HumanMessage(content=synthesis_prompt)
             ]
             final_response = llm.invoke(synthesis_messages)
             final_content = final_response.content
@@ -68,9 +95,8 @@ def make_supervisor_node(llm, members: list[str]):
                     "next": "FINISH"
                 }
             )
-            goto = END
 
-        # Pass the task to the selected agent
+        # Assegna il task all'agente selezionato
         return Command(
             goto=goto,
             update={

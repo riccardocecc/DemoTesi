@@ -67,7 +67,7 @@ def kitchen_node(kitchen_agent):
         return Command(
             update={
                  "structured_responses":  state.get("structured_responses", []) + [structured_response],
-                 "messages": [HumanMessage(content=task + ", completed")]
+                 "messages": [HumanMessage(content=task)]
             },
             goto="supervisor",
         )
