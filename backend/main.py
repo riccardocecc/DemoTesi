@@ -44,7 +44,7 @@ if __name__ == "__main__":
     # Salva l'immagine su file
     #png_data = graph.get_graph().draw_mermaid_png()
     #with open("graph.png", "wb") as f:
-     #   f.write(png_data)
+     #   f.write(png_data)s
 
     #print("Grafo salvato come 'graph.png'")
 
@@ -58,4 +58,4 @@ if __name__ == "__main__":
      ##   os.system('start grafo_serenade.png')
     #else:  # Linux
        # os.system('xdg-open grafo_serenade.png')
-    run_demo("C'è qualche correllazione con la qualità del sonno e le ore passate in bagno nel soggetto 2 nell'ultima settimana?")
+    run_demo("Come ha dormito e come ha cucinato il soggetto 2 nell'ultima settimana?")

@@ -6,6 +6,13 @@ from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 
 from backend.models.state import State
+
+
+#trasforma una domanda in linguaggio naturale in un piano di esecuzione strutturato che specifica:
+# Chi analizzare (subject_id)
+# Quando (period)
+# quali task eseguire e con quali agenti specializzati
+
 # User Question
 #     ↓
 # [ChatPromptTemplate] → Crea prompt con system instructions + format instructions
@@ -57,7 +64,7 @@ def create_planner_node(llm):
     # Parser Pydantic per output strutturato
     parser = PydanticOutputParser(pydantic_object=ExecutionPlan)
 
-    # Template del prompt con format instructions
+
     prompt = ChatPromptTemplate.from_messages([
         ("system", """Sei un esperto nell'analisi di domande sulle attività quotidiane di soggetti monitorati.
 
@@ -110,7 +117,7 @@ Piano:
         ("user", "{question}")
     ])
 
-    # Chain: prompt -> LLM -> parser
+    #questa è la chain
     planning_chain = prompt | llm | parser
 
     def planner_node(state: State) -> Command[Literal["supervisor"]]:
@@ -126,13 +133,13 @@ Piano:
         print(f"{original_question}")
         print(f"{'=' * 60}\n")
 
-        # Esegui la planning chain
+        # esegue chain
         plan: ExecutionPlan = planning_chain.invoke({
             "question": original_question,
             "format_instructions": parser.get_format_instructions()
         })
 
-        # Log del piano
+
         print(f"EXECUTION PLAN:")
         print(f"  Subject ID: {plan.subject_id}")
         print(f"  Period: {plan.period}")
@@ -141,7 +148,7 @@ Piano:
             print(f"    {i}. [{task.agent}] {task.instruction}")
         print(f"{'=' * 60}\n")
 
-        # Crea messaggio informativo per il supervisor
+
         plan_summary = (
             f"EXECUTION PLAN:\n"
             f"Subject: {plan.subject_id}, Period: {plan.period}\n\n"

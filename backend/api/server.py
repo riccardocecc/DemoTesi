@@ -15,7 +15,7 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     question: str
     answer: str
-    structured_responses: List[Dict[str, Any]]  # ← AGGIUNGI
+    structured_responses: List[Dict[str, Any]]
 
 
 def run_demo(question: str, max_iterations: int = 10):
@@ -24,30 +24,30 @@ def run_demo(question: str, max_iterations: int = 10):
     e le risposte strutturate.
     """
     final_response = None
-    structured_responses = []  # ← AGGIUNGI
+    structured_responses = []
 
     for s in serenade_graph.stream(
             {"messages": [("user", question)]},
             {"recursion_limit": max_iterations},
     ):
         for node_name, node_output in s.items():
+
+
             if node_output is None:
                 continue
 
-            # ← AGGIUNGI: Cattura structured_responses dallo state
+            # Cattura structured_responses dallo state
             if "structured_responses" in node_output:
                 structured_responses = node_output["structured_responses"]
 
-            if node_name == "supervisor":
-                next_agent = node_output.get("next", "Unknown")
-
-                if next_agent == "FINISH" and "messages" in node_output:
-                    for msg in node_output["messages"]:
-                        if hasattr(msg, 'name') and msg.name == "supervisor":
+            if node_name == "correlation_analyzer" and "messages" in node_output:
+                for msg in node_output["messages"]:
+                    if hasattr(msg, 'name'):
+                        if msg.name == "correlation_analyzer":
                             final_response = msg.content
                             break
 
-    return final_response, structured_responses  # ← MODIFICA
+    return final_response, structured_responses
 
 
 @app.post("/query", response_model=QueryResponse)
@@ -57,7 +57,7 @@ async def query_endpoint(request: QueryRequest):
     e le risposte strutturate degli agenti.
     """
     try:
-        answer, structured_responses = run_demo(request.question, request.max_iterations)  # ← MODIFICA
+        answer, structured_responses = run_demo(request.question, request.max_iterations)
 
         if answer is None:
             raise HTTPException(status_code=500, detail="Nessuna risposta finale generata")
@@ -65,7 +65,7 @@ async def query_endpoint(request: QueryRequest):
         return QueryResponse(
             question=request.question,
             answer=answer,
-            structured_responses=structured_responses  # ← AGGIUNGI
+            structured_responses=structured_responses
         )
 
     except Exception as e:
