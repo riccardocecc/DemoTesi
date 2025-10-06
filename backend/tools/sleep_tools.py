@@ -85,7 +85,7 @@ def analyze_daily_heart_rate(
   Returns the average heart rate (HR) of the subject during sleep over the specified period.
   """
 
-  df = pd.read_csv('sonno_data.csv')
+  df = pd.read_csv(SLEEP_DATA_PATH)
   df['data'] = pd.to_datetime(df['data'])
 
   # Filtra per soggetto

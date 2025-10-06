@@ -35,6 +35,135 @@ with st.sidebar:
             st.error(f"Errore di connessione: {str(e)}")
 
 
+def create_daily_heart_rate_chart(data):
+    """Crea grafico per il battito cardiaco giornaliero"""
+    if "error" in data:
+        st.error(f"{data['error']}")
+        return
+
+    # Estrai i dati giornalieri
+    daily_hr = data.get('daily_avg_hr', {})
+
+    if not daily_hr:
+        st.warning("Nessun dato disponibile per la frequenza cardiaca giornaliera")
+        return
+
+    # Converti in DataFrame
+    hr_df = pd.DataFrame({
+        'Data': list(daily_hr.keys()),
+        'HR Media': list(daily_hr.values())
+    })
+    hr_df['Data'] = pd.to_datetime(hr_df['Data'])
+    hr_df = hr_df.sort_values('Data')
+
+    # Metriche principali
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("HR Media Periodo", f"{hr_df['HR Media'].mean():.1f} bpm")
+    with col2:
+        st.metric("HR Minima", f"{hr_df['HR Media'].min():.1f} bpm")
+    with col3:
+        st.metric("HR Massima", f"{hr_df['HR Media'].max():.1f} bpm")
+    with col4:
+        st.metric("Giorni Monitorati", len(hr_df))
+
+    # Grafico temporale
+    st.subheader("Andamento Frequenza Cardiaca Giornaliera")
+
+    fig = go.Figure()
+
+    # Linea principale
+    fig.add_trace(go.Scatter(
+        x=hr_df['Data'],
+        y=hr_df['HR Media'],
+        mode='lines+markers',
+        name='HR Media',
+        line=dict(color='#FF6B6B', width=3),
+        marker=dict(size=8),
+        hovertemplate='<b>Data:</b> %{x|%Y-%m-%d}<br><b>HR:</b> %{y:.1f} bpm<extra></extra>'
+    ))
+
+    # Media del periodo (linea tratteggiata)
+    avg_hr = hr_df['HR Media'].mean()
+    fig.add_hline(
+        y=avg_hr,
+        line_dash="dash",
+        line_color="gray",
+        annotation_text=f"Media: {avg_hr:.1f} bpm",
+        annotation_position="right"
+    )
+
+    # Range normale (60-100 bpm)
+    fig.add_hrect(
+        y0=60, y1=100,
+        fillcolor="lightgreen",
+        opacity=0.1,
+        layer="below",
+        line_width=0,
+        annotation_text="Range Normale",
+        annotation_position="top left"
+    )
+
+    fig.update_layout(
+        height=400,
+        xaxis_title="Data",
+        yaxis_title="Frequenza Cardiaca (bpm)",
+        hovermode='x unified',
+        showlegend=False
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Statistiche aggiuntive
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("Distribuzione HR")
+        fig_hist = px.histogram(
+            hr_df,
+            x='HR Media',
+            nbins=20,
+            color_discrete_sequence=['#FF6B6B'],
+            labels={'HR Media': 'Frequenza Cardiaca (bpm)', 'count': 'Frequenza'}
+        )
+        fig_hist.update_layout(height=300, showlegend=False)
+        st.plotly_chart(fig_hist, use_container_width=True)
+
+    with col2:
+        st.subheader("Variabilità HR")
+
+        # Calcola variazioni giornaliere
+        hr_df['Variazione'] = hr_df['HR Media'].diff()
+
+        # Statistiche variabilità
+        stats_df = pd.DataFrame({
+            'Metrica': ['Deviazione Standard', 'Variazione Media', 'Range'],
+            'Valore': [
+                f"{hr_df['HR Media'].std():.2f} bpm",
+                f"{abs(hr_df['Variazione'].mean()):.2f} bpm/giorno",
+                f"{hr_df['HR Media'].max() - hr_df['HR Media'].min():.1f} bpm"
+            ]
+        })
+
+        st.dataframe(stats_df, hide_index=True, use_container_width=True)
+
+        # Indicatore stabilità
+        std_hr = hr_df['HR Media'].std()
+        if std_hr < 3:
+            stability = "Molto Stabile"
+            color = "green"
+        elif std_hr < 5:
+            stability = "Stabile"
+            color = "lightgreen"
+        elif std_hr < 7:
+            stability = "Moderata"
+            color = "orange"
+        else:
+            stability = "Variabile"
+            color = "red"
+
+        st.markdown(f"**Stabilità HR:** :{color}[{stability}]")
+
 # Funzioni per creare grafici
 def create_sleep_charts(data):
     """Crea grafici per i dati del sonno"""
@@ -381,7 +510,11 @@ if submit_button:
 
                             # Crea grafici specifici per tipo di agente
                             if agent_name == "sleep_agent":
-                                create_sleep_charts(agent_data)
+                                # Controlla se è un DailyHeartRateResult
+                                if "daily_avg_hr" in agent_data:
+                                    create_daily_heart_rate_chart(agent_data)
+                                else:
+                                    create_sleep_charts(agent_data)
                             elif agent_name == "kitchen_agent":
                                 create_kitchen_charts(agent_data)
                             elif agent_name == "mobility_agent":

@@ -19,10 +19,10 @@ def analyze_mobility_patterns(
     df = pd.read_csv(SENSOR_DATA_PATH)
     df['timestamp'] = pd.to_datetime(df['timestamp'])
 
-    # Filtra per soggetto
+
     df_subject = df[df['subject_id'] == subject_id].copy()
 
-    # Parsing del periodo
+
     if period.startswith('last_'):
         days = int(period.split('_')[1])
         end_date = df_subject['timestamp'].max()
@@ -84,7 +84,7 @@ def analyze_mobility_patterns(
     if len(first_half) > 0 and len(second_half) > 0:
         days_first = (mid_point - start_date).days
         days_second = (end_date - mid_point).days
-        results["trends"] = MobilityTrendData(  # ← CAMBIA QUI
+        results["trends"] = MobilityTrendData(
             activity_frequency_change=round((len(second_half) / days_second) - (len(first_half) / days_first), 2),
             avg_duration_change_minutes=round((second_half['duration_seconds'].mean() -
                                                   first_half['duration_seconds'].mean()) / 60, 2)

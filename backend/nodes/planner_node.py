@@ -155,8 +155,8 @@ Piano:
             update={
                 "messages": [HumanMessage(content=plan_summary)],
                 "original_question": original_question,
-                "execution_plan": plan,  # ✅ AGGIUNGI QUI
-                "completed_tasks": set()  # ✅ INIZIALIZZA QUI
+                "execution_plan": plan,
+                "completed_tasks": set()
             }
         )
 

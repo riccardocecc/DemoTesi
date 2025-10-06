@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any
-from backend.config.settings import llm
 from backend.graph.builder import build_graph
 
 app = FastAPI()

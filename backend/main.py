@@ -58,4 +58,4 @@ if __name__ == "__main__":
      ##   os.system('start grafo_serenade.png')
     #else:  # Linux
        # os.system('xdg-open grafo_serenade.png')
-    run_demo("Come ha dormito come ha cucinato e in quali stanze è stato di più il soggetto 2 nell'ultima settimana?")
+    run_demo("C'è qualche correllazione con la qualità del sonno e le ore passate in bagno nel soggetto 2 nell'ultima settimana?")
