@@ -76,7 +76,7 @@ def analyze_mobility_patterns(
     results["time_slot_activity"] = {slot: int(count) for slot, count in time_slot_dist.items()}
 
 
-    # Trend analysis
+
     mid_point = start_date + (end_date - start_date) / 2
     first_half = df_period[df_period['timestamp'] < mid_point]
     second_half = df_period[df_period['timestamp'] >= mid_point]

@@ -7,9 +7,6 @@ def run_demo(question: str, max_iterations: int = 10):
     """
     Esegue la demo del sistema con la domanda fornita e restituisce la risposta finale.
     """
-    print(f"DOMANDA: {question}")
-    print("=" * 60)
-
     final_response = None
 
     for s in graph.stream(
@@ -20,25 +17,14 @@ def run_demo(question: str, max_iterations: int = 10):
             if node_output is None:
                 continue
 
-            if node_name == "supervisor":
-                next_agent = node_output.get("next", "Unknown")
-
-                if next_agent == "FINISH" and "messages" in node_output:
-                    for msg in node_output["messages"]:
-                        if hasattr(msg, 'name') and msg.name == "supervisor":
-                            final_response = msg.content
-                            break
-
-    if final_response:
-        print(f"\nRISPOSTA FINALE:")
-        print("-" * 60)
-        print(final_response)
-        print("-" * 60)
-    else:
-        print("\nNessuna risposta finale trovata.")
+            # Cattura la risposta finale dal correlation_analyzer
+            if node_name == "correlation_analyzer" and "messages" in node_output:
+                for msg in node_output["messages"]:
+                    if hasattr(msg, 'name') and msg.name == "correlation_analyzer":
+                        final_response = msg.content
+                        break
 
     return final_response
-
 
 if __name__ == "__main__":
     # Salva l'immagine su file

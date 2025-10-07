@@ -12,21 +12,21 @@ google_api_key = os.getenv("GOOGLE_API")
 llm_supervisor  = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     google_api_key=google_api_key,
-    temperature=0.3,  # ✅ Leggermente creativo per sintesi naturale
-    top_p=0.5,  # ✅ Più varietà lessicale
-    top_k=20,  # ✅ Considera più opzioni per linguaggio naturale
-    max_output_tokens=4096,  # ✅ Risposta completa e dettagliata
+    temperature=0.3,  # creativo
+    top_p=0.5,  # varietà lessicale
+    top_k=20,  # maggiori opzioni (da vedere meglio)
+    max_output_tokens=4096,  #lunghezza risposta (forse anche meno)
     timeout=60.0,
     max_retries=2
 )
 
 llm_agents = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",       # ✅ Miglior balance qualità/velocità
+    model="gemini-2.5-flash",
     google_api_key=google_api_key,
-    temperature=0,                  # ✅ Precisione nei tool calls
-    top_p=0.1,                     # ✅ Molto focale
-    top_k=1,                       # ✅ Decisioni deterministiche
-    max_output_tokens=2048,        # ✅ Sufficiente per dati strutturati
+    temperature=0,
+    top_p=0.1,
+    top_k=1,
+    max_output_tokens=2048,
     timeout=60.0,
     max_retries=2
 )
@@ -34,10 +34,10 @@ llm_agents = ChatGoogleGenerativeAI(
 llm_query = ChatGoogleGenerativeAI(
     model="gemini-2.0-flash-exp",
     google_api_key=google_api_key,
-    temperature=0,  # ✅ Completamente deterministico
-    top_p=0.1,  # ✅ Solo i token più probabili
-    top_k=1,  # ✅ Solo il migliore
-    max_output_tokens=1024,  # ✅ Piano è breve (JSON piccolo)
+    temperature=0,  #deterministico
+    top_p=0.1,  #token più probabili
+    top_k=1,  #solo il migliore
+    max_output_tokens=1024,  #per json dovrebbe bastare
     timeout=30.0,
     max_retries=2
 )
@@ -47,7 +47,7 @@ llm_query = ChatGoogleGenerativeAI(
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 
-# Path assoluti ai file
+
 SLEEP_DATA_PATH = DATA_DIR / "sonno_data.csv"
 KITCHEN_DATA_PATH = DATA_DIR / "cucina_data.csv"
 SENSOR_DATA_PATH = DATA_DIR / "sensor_data.csv"

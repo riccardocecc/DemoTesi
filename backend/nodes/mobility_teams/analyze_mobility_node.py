@@ -1,48 +1,51 @@
-
+import json
 from typing import Literal
 
 from langgraph.prebuilt import create_react_agent
 
 from backend.models.results import MobilityAnalysisResult, ErrorResult
-from backend.models.state import State, AgentResponse
+from backend.models.state import State, AgentResponse, TeamResponse
 from langgraph.types import Command
 from langchain_core.messages import HumanMessage, ToolMessage
 
 from backend.tools.mobility_tools import analyze_mobility_patterns
 
 
-def create_mobility_agent(llm):
+def create_analyze_mobility_agent(llm):
     tools = [analyze_mobility_patterns]
     return create_react_agent(llm, tools=tools)
 
-def mobility_node(mobility_agent):
-    def _node(state: State) -> Command[Literal["supervisor"]]:
+
+def create_analyze_mobility_node(analyze_mobility_agent):
+    def _node(state: State) -> Command[Literal["mobility_team_supervisor"]]:
+        # Estrai task
         task = None
         for msg in reversed(state["messages"]):
             if hasattr(msg, 'name') and msg.name == "supervisor_instruction":
                 task = msg.content.replace("[TASK]: ", "")
                 break
 
-        print(f"DEBUG - Kitchen agent received task: '{task}'")
+        print(f"DEBUG - Mobility agent received task: '{task}'")
         message = task or "Analizza la mobilità del soggetto richiesto."
 
+        # Invoca agent con focused_state
         focused_state = {"messages": [HumanMessage(content=message)]}
-        result = mobility_agent.invoke(focused_state)
+        result = analyze_mobility_agent.invoke(focused_state)
         print("result " + str(result))
+
 
         agent_data: MobilityAnalysisResult | ErrorResult | None = None
         for msg in result["messages"]:
             if isinstance(msg, ToolMessage):
-                import json
-
-
                 if isinstance(msg.content, dict):
                     raw_data = msg.content
                 elif isinstance(msg.content, str):
-                    raw_data = json.loads(msg.content)
+                    try:
+                        raw_data = json.loads(msg.content)
+                    except json.JSONDecodeError:
+                        raw_data = {"error": "JSON parsing failed"}
                 else:
                     raw_data = {"error": f"Formato risposta non valido: {type(msg.content)}"}
-
 
                 if "error" in raw_data:
                     agent_data = raw_data
@@ -54,22 +57,48 @@ def mobility_node(mobility_agent):
             agent_data = {"error": "Nessuna risposta dall'agente mobility"}
 
 
-
-
-        structured_response: AgentResponse = {
+        agent_response: AgentResponse = {
             "task": message,
             "agent_name": "mobility_agent",
             "data": agent_data
         }
-        print(f"DEBUG - Mobility agent response type: {type(structured_response['data'])}")
+
+        print(f"DEBUG - Mobility agent response type: {type(agent_response['data'])}")
+
+
+        current_responses = state.get("structured_responses", [])
+
+
+        mobility_team_response = None
+        for team_resp in current_responses:
+            if team_resp["team_name"] == "mobility_team":
+                mobility_team_response = team_resp
+                break
+
+
+        if mobility_team_response:
+
+            mobility_team_response["structured_responses"].append(agent_response)
+            updated_responses = current_responses
+        else:
+
+            new_team_response: TeamResponse = {
+                "structured_responses": [agent_response],
+                "team_name": "mobility_team"
+            }
+            updated_responses = current_responses + [new_team_response]
+
+
         completed_tasks = state.get("completed_tasks", set())
         completed_tasks.add(task)
+
         return Command(
             update={
-                "structured_responses":  state.get("structured_responses", []) + [structured_response],
-                "completed_tasks": completed_tasks,  # ← AGGIUNGI
-                "messages": [HumanMessage(content=task)]
+                "structured_responses": updated_responses,
+                "completed_tasks": completed_tasks,
+                "messages": [HumanMessage(content=f"Mobility completed: {task}", name="mobility_node_response")]
             },
-            goto="supervisor",
+            goto="mobility_team_supervisor"
         )
+
     return _node

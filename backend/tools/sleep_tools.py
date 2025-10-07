@@ -88,10 +88,10 @@ def analyze_daily_heart_rate(
   df = pd.read_csv(SLEEP_DATA_PATH)
   df['data'] = pd.to_datetime(df['data'])
 
-  # Filtra per soggetto
+
   df_subject = df[df['subject_id'] == subject_id].copy()
 
-  # Determina il periodo da analizzare
+
   if period.startswith('last_'):
       days = int(period.split('_')[1])
       end_date = df_subject['data'].max()
@@ -101,13 +101,13 @@ def analyze_daily_heart_rate(
       start_date = pd.to_datetime(dates[0])
       end_date = pd.to_datetime(dates[1])
 
-  # Filtra i dati per il periodo selezionato
+
   df_period = df_subject[(df_subject['data'] >= start_date) & (df_subject['data'] <= end_date)]
 
   if df_period.empty:
       return ErrorResult(error="Nessun dato disponibile per il periodo specificato")
 
-  # Calcola la media giornaliera del battito cardiaco
+
   daily_avg = df_period.groupby('data')['hr_average'].mean().round(2)
   daily_avg = {date.strftime('%Y-%m-%d'): float(hr) for date, hr in daily_avg.items()}
 

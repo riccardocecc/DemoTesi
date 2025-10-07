@@ -8,29 +8,13 @@ from pydantic import BaseModel, Field
 from backend.models.state import State
 
 
-#trasforma una domanda in linguaggio naturale in un piano di esecuzione strutturato che specifica:
-# Chi analizzare (subject_id)
-# Quando (period)
-# quali task eseguire e con quali agenti specializzati
-
-# User Question
-#     ↓
-# [ChatPromptTemplate] → Crea prompt con system instructions + format instructions
-#     ↓
-# [LLM (Gemini)] → Genera piano in formato JSON
-#     ↓
-# [PydanticOutputParser] → Valida e converte in ExecutionPlan object
-#     ↓
-# ExecutionPlan (typed, validated)
-
-
-class AgentTask(BaseModel):
-    """Singolo task per un agente specifico"""
-    agent: Literal["sleep_node", "kitchen_node", "mobility_node"] = Field(
-        description="Nome dell'agente che deve eseguire il task"
+class TeamTask(BaseModel):
+    """Singolo task per un team specifico"""
+    team: Literal["sleep_team", "kitchen_team", "mobility_team"] = Field(
+        description="Nome del team che deve eseguire il task"
     )
     instruction: str = Field(
-        description="Istruzione specifica per l'agente, inclusi subject_id e periodo"
+        description="Istruzione specifica e dettagliata per il team, che include tutti gli aspetti da analizzare nel dominio di competenza"
     )
 
 
@@ -43,11 +27,11 @@ class ExecutionPlan(BaseModel):
         description="Periodo da analizzare: 'last_N_days' o 'YYYY-MM-DD,YYYY-MM-DD'",
         default="last_30_days"
     )
-    tasks: list[AgentTask] = Field(
-        description="Lista ordinata di task da eseguire"
+    tasks: list[TeamTask] = Field(
+        description="Lista ordinata di task da eseguire, uno per ogni team coinvolto"
     )
 
-    def get_next_task(self, completed: set[str]) -> AgentTask | None:
+    def get_next_task(self, completed: set[str]) -> TeamTask | None:
         """Restituisce il prossimo task non completato"""
         for task in self.tasks:
             if task.instruction not in completed:
@@ -57,14 +41,13 @@ class ExecutionPlan(BaseModel):
 
 def create_planner_node(llm):
     """
-    Crea un nodo planner efficiente usando Pydantic per structured output.
-    Questo approccio è più veloce e type-safe rispetto al question analyzer precedente.
+    Crea un nodo planner che assegna i task ai team appropriati.
+    Il planner estrae il dominio della query e crea istruzioni dettagliate per ogni team.
     """
-
     # Parser Pydantic per output strutturato
     parser = PydanticOutputParser(pydantic_object=ExecutionPlan)
 
-
+    # Template del prompt con format instructions
     prompt = ChatPromptTemplate.from_messages([
         ("system", """Sei un esperto nell'analisi di domande sulle attività quotidiane di soggetti monitorati.
 
@@ -73,57 +56,90 @@ Analizza la domanda dell'utente e crea un piano di esecuzione che specifichi:
 1. **subject_id**: L'ID numerico del soggetto (1, 2, 3, etc.). Se non specificato, usa null.
 
 2. **period**: Il periodo temporale da analizzare:
-   - "last_N_days" per gli ultimi N giorni (es: "last_7_days", "last_30_days")
+   - "last_N_days" per gli ultimi N giorni (es: "last_7_days", "last_14_days", "last_30_days")
    - "YYYY-MM-DD,YYYY-MM-DD" per un range specifico
    - Default: "last_30_days" se non specificato
 
 3. **tasks**: Lista di task da eseguire. Per ogni task specifica:
-   - **agent**: quale agente deve eseguirlo
-     * "sleep_node": per sonno, frequenza cardiaca, respirazione durante il sonno
-     * "kitchen_node": per attività in cucina, cottura, pasti
-     * "mobility_node": per movimento, stanze visitate, mobilità indoor
-   - **instruction**: istruzione chiara in italiano che include subject_id e periodo
+   - **team**: quale team deve eseguirlo
+     * "sleep_team": per tutto ciò che riguarda il sonno (qualità, durata, risvegli, frequenza cardiaca durante il sonno, respirazione notturna, fasi del sonno, etc.)
+     * "kitchen_team": per tutto ciò che riguarda la cucina e i pasti (attività in cucina, cottura, preparazione pasti, utilizzo elettrodomestici, orari dei pasti, etc.)
+     * "mobility_team": per tutto ciò che riguarda il movimento (stanze visitate, mobilità indoor, attività fisica, tempo trascorso in diverse aree, pattern di movimento, etc.)
 
-ESEMPI:
+   - **instruction**: istruzione completa e dettagliata in italiano che:
+     * Include TUTTI gli aspetti da analizzare menzionati nella domanda originale per quel dominio
+     * Specifica sempre subject_id e periodo
+     * È autonoma e comprensibile senza contesto aggiuntivo
+     * Contiene tutti i dettagli necessari per l'analisi
+
+**REGOLE IMPORTANTI:**
+- Estrai e separa gli aspetti della domanda per dominio di competenza
+- Ogni team riceve UN'UNICA istruzione che include TUTTI gli aspetti del suo dominio
+- Non duplicare informazioni tra team
+- Se la domanda menziona più aspetti dello stesso dominio, includili tutti nella stessa istruzione
+- Le istruzioni devono essere specifiche e dettagliate, non generiche
+
+**ESEMPI:**
 
 Domanda: "Come ha dormito il soggetto 2 negli ultimi 7 giorni?"
 Piano:
 - subject_id: 2
 - period: "last_7_days"
 - tasks: [
-    {{"agent": "sleep_node", "instruction": "Analizza il sonno del soggetto 2 negli ultimi 7 giorni"}}
+    {{"team": "sleep_team", "instruction": "Analizza come ha dormito il soggetto 2 negli ultimi 7 giorni: qualità del sonno, durata, eventuali risvegli e pattern generali"}}
   ]
 
-Domanda: "Analizza sonno e cucina del soggetto 1 nell'ultimo mese"
+Domanda: "come ha dormito e come si è comportato il cuore durante il sonno del soggetto 2 nelle ultime due settimane e come ha cucinato"
+Piano:
+- subject_id: 2
+- period: "last_14_days"
+- tasks: [
+    {{"team": "sleep_team", "instruction": "Analizza come ha dormito il soggetto 2 nelle ultime due settimane e come si è comportato il cuore durante il sonno: qualità del sonno, durata, frequenza cardiaca notturna, variazioni e anomalie"}},
+    {{"team": "kitchen_team", "instruction": "Analizza come ha cucinato il soggetto 2 nelle ultime due settimane: frequenza delle attività in cucina, preparazione pasti e pattern culinari"}}
+  ]
+
+Domanda: "Analizza sonno, frequenza cardiaca notturna e cucina del soggetto 1 nell'ultimo mese"
 Piano:
 - subject_id: 1
 - period: "last_30_days"
 - tasks: [
-    {{"agent": "sleep_node", "instruction": "Analizza il sonno del soggetto 1 negli ultimi 30 giorni"}},
-    {{"agent": "kitchen_node", "instruction": "Analizza l'attività in cucina del soggetto 1 negli ultimi 30 giorni"}}
+    {{"team": "sleep_team", "instruction": "Analizza il sonno e la frequenza cardiaca notturna del soggetto 1 negli ultimi 30 giorni: qualità del sonno, durata, pattern cardiaci durante il sonno e eventuali anomalie"}},
+    {{"team": "kitchen_team", "instruction": "Analizza l'attività in cucina del soggetto 1 negli ultimi 30 giorni: preparazione pasti, utilizzo elettrodomestici e pattern culinari"}}
   ]
 
-Domanda: "Mobilità, sonno e cucina del soggetto 3 dal 2024-01-01 al 2024-01-31"
+Domanda: "Mobilità, tempo in cucina, sonno profondo e respiro notturno del soggetto 3 dal 2024-01-01 al 2024-01-31"
 Piano:
 - subject_id: 3
 - period: "2024-01-01,2024-01-31"
 - tasks: [
-    {{"agent": "sleep_node", "instruction": "Analizza il sonno del soggetto 3 dal 2024-01-01 al 2024-01-31"}},
-    {{"agent": "kitchen_node", "instruction": "Analizza l'attività in cucina del soggetto 3 dal 2024-01-01 al 2024-01-31"}},
-    {{"agent": "mobility_node", "instruction": "Analizza la mobilità del soggetto 3 dal 2024-01-01 al 2024-01-31"}}
+    {{"team": "sleep_team", "instruction": "Analizza il sonno profondo e il respiro notturno del soggetto 3 dal 2024-01-01 al 2024-01-31: fasi del sonno profondo, durata, qualità respiratoria notturna e pattern"}},
+    {{"team": "kitchen_team", "instruction": "Analizza il tempo trascorso in cucina dal soggetto 3 dal 2024-01-01 al 2024-01-31: durata delle sessioni, frequenza e orari delle attività"}},
+    {{"team": "mobility_team", "instruction": "Analizza la mobilità del soggetto 3 dal 2024-01-01 al 2024-01-31: stanze visitate, pattern di movimento e livello di attività"}}
+  ]
+
+Domanda: "Il soggetto 5 si muove abbastanza? E come cucina?"
+Piano:
+- subject_id: 5
+- period: "last_30_days"
+- tasks: [
+    {{"team": "mobility_team", "instruction": "Analizza se il soggetto 5 si muove abbastanza negli ultimi 30 giorni: livello di attività fisica, mobilità indoor, tempo trascorso in movimento e confronto con livelli raccomandati"}},
+    {{"team": "kitchen_team", "instruction": "Analizza come cucina il soggetto 5 negli ultimi 30 giorni: frequenza delle attività culinarie, preparazione pasti, utilizzo della cucina e pattern"}}
   ]
 
 {format_instructions}"""),
         ("user", "{question}")
     ])
 
-    #questa è la chain
+    # Chain: prompt -> LLM -> parser
+    # 1. prompt: formatta la domanda con istruzioni per creare il piano
+    # 2. llm: genera il piano in formato strutturato JSON
+    # 3. parser: converte l'output JSON in oggetto ExecutionPlan validato
     planning_chain = prompt | llm | parser
 
     def planner_node(state: State) -> Command[Literal["supervisor"]]:
         """
         Crea un piano di esecuzione analizzando la domanda dell'utente.
-        Usa una chain ottimizzata con Pydantic per output strutturato.
+        Assegna i task ai team appropriati in base al dominio della query.
         """
         # Prendi la domanda originale
         original_question = state["messages"][0].content if state["messages"] else ""
@@ -133,7 +149,7 @@ Piano:
         print(f"{original_question}")
         print(f"{'=' * 60}\n")
 
-        # esegue chain
+        # Esegui la planning chain
         plan: ExecutionPlan = planning_chain.invoke({
             "question": original_question,
             "format_instructions": parser.get_format_instructions()
@@ -145,7 +161,8 @@ Piano:
         print(f"  Period: {plan.period}")
         print(f"  Tasks ({len(plan.tasks)}):")
         for i, task in enumerate(plan.tasks, 1):
-            print(f"    {i}. [{task.agent}] {task.instruction}")
+            print(f"    {i}. [{task.team}]")
+            print(f"       {task.instruction}")
         print(f"{'=' * 60}\n")
 
 
@@ -155,7 +172,7 @@ Piano:
             f"Tasks to execute:\n"
         )
         for i, task in enumerate(plan.tasks, 1):
-            plan_summary += f"{i}. [{task.agent}] {task.instruction}\n"
+            plan_summary += f"{i}. [{task.team}]\n   {task.instruction}\n\n"
 
         return Command(
             goto="supervisor",

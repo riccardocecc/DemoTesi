@@ -1,42 +1,59 @@
 from langgraph.graph import StateGraph, START
 
-from backend.config.settings import llm_query, llm_agents, llm_supervisor
+from backend.config.settings import llm_agents, llm_supervisor, llm_query
 from backend.models.state import State
-from backend.nodes.kitchen_node import kitchen_node, create_kitchen_agent
-from backend.nodes.mobility_node import mobility_node, create_mobility_agent
-from backend.nodes.sleep_node import sleep_node, create_sleep_agent
+from backend.nodes.kitchen_teams.kitchen_graph import build_kitchen_graph
+from backend.nodes.mobility_teams.mobility_graph import build_mobility_graph
+from backend.nodes.sleep_teams.sleep_graph import build_sleep_graph
 from backend.nodes.supervisor import make_supervisor_node
 from backend.nodes.planner_node import create_planner_node
-from backend.nodes.correlation_analyzer_node import create_correlation_analyzer_node  # ← AGGIUNGI
+from backend.nodes.correlation_analyzer_node import create_correlation_analyzer_node
+
+
 
 
 def build_graph():
     """
-    Costruisce il grafo completo del sistema multi-agente.
+    Costruisce il grafo completo del sistema multi-agente con teams
 
-    Returns:
-        CompiledGraph: Grafo compilato pronto per l'esecuzione
+    Architettura:
+    - Planner: analizza la query e crea l'execution plan
+    - Supervisor: coordina i team in base al piano
+    - Teams (subgraphs): sleep_team, kitchen_team, mobility_team
+    - Correlation Analyzer: sintetizza i risultati finali
     """
-    # Crea gli agenti
-    sleep_agent = create_sleep_agent(llm_agents)
-    kitchen_agent = create_kitchen_agent(llm_agents)
-    mobility_agent = create_mobility_agent(llm_agents)
 
-    # Crea i nodi
+    sleep_team_graph = build_sleep_graph(llm_agents, llm_supervisor)
+    kitchen_team_graph = build_kitchen_graph(llm_agents, llm_supervisor)
+    mobility_team_graph = build_mobility_graph(llm_agents, llm_supervisor)
+
+
     planner = create_planner_node(llm_query)
-    supervisor = make_supervisor_node(llm_supervisor, ["sleep_node", "kitchen_node", "mobility_node"])
+    supervisor = make_supervisor_node(
+        llm_supervisor,
+        teams=["sleep_team", "kitchen_team", "mobility_team"]
+    )
     correlation_analyzer = create_correlation_analyzer_node(llm_supervisor)
 
-    # Costruisce il grafo
     builder = StateGraph(State)
+
+    # nodi di coordinamento
     builder.add_node("planner", planner)
     builder.add_node("supervisor", supervisor)
-    builder.add_node("sleep_node", sleep_node(sleep_agent))
-    builder.add_node("kitchen_node", kitchen_node(kitchen_agent))
-    builder.add_node("mobility_node", mobility_node(mobility_agent))
-    builder.add_node("correlation_analyzer", correlation_analyzer)  # ← AGGIUNGI
+    builder.add_node("correlation_analyzer", correlation_analyzer)
 
-    # Flusso: START → planner → supervisor → [agents] → supervisor → correlation_analyzer → END
+    # subgraphs come nodi
+    builder.add_node("sleep_team", sleep_team_graph)
+    builder.add_node("kitchen_team", kitchen_team_graph)
+    builder.add_node("mobility_team", mobility_team_graph)
+
+    #edge da team a top supervisor
+    builder.add_edge("sleep_team", "supervisor")
+    builder.add_edge("kitchen_team", "supervisor")
+    builder.add_edge("mobility_team", "supervisor")
+
+    #estrae domini da query e assegna teams. Non va nel dettaglio
     builder.add_edge(START, "planner")
+
 
     return builder.compile()

@@ -22,14 +22,19 @@ def create_correlation_analyzer_node(llm):
         print(f"{'=' * 60}\n")
 
         original_question = state.get("original_question", "")
-        structured_responses = state.get("structured_responses", [])
+        team_responses = state.get("structured_responses", [])
+
+        # Estrai tutti gli AgentResponse da tutti i TeamResponse
+        all_agent_responses = []
+        for team_resp in team_responses:
+            all_agent_responses.extend(team_resp["structured_responses"])
 
         analysis_prompt = (
             f"Domanda originale: {original_question}\n\n"
             f"Dati strutturati ricevuti dagli agenti:\n"
         )
 
-        for resp in structured_responses:
+        for resp in all_agent_responses:
             analysis_prompt += f"\n{resp['agent_name']}:\n{resp['data']}\n"
 
         analysis_prompt += (
@@ -56,7 +61,6 @@ def create_correlation_analyzer_node(llm):
             f"5. INSIGHTS:\n"
             f"   - Fornisci interpretazioni significative dei dati\n"
         )
-
 
         messages = [
             SystemMessage(content=(

@@ -32,13 +32,17 @@ def run_demo(question: str, max_iterations: int = 10):
     ):
         for node_name, node_output in s.items():
 
-
             if node_output is None:
                 continue
 
-            # Cattura structured_responses dallo state
+            # Cattura structured_responses dallo state e "spacchetta" i TeamResponse
             if "structured_responses" in node_output:
-                structured_responses = node_output["structured_responses"]
+                team_responses = node_output["structured_responses"]
+                # Estrai tutti gli AgentResponse da tutti i TeamResponse
+                all_agent_responses = []
+                for team_resp in team_responses:
+                    all_agent_responses.extend(team_resp["structured_responses"])
+                structured_responses = all_agent_responses
 
             if node_name == "correlation_analyzer" and "messages" in node_output:
                 for msg in node_output["messages"]:

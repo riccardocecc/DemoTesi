@@ -22,10 +22,9 @@ def analyze_kitchen_activity(
     df['timestamp_picco'] = pd.to_datetime(df['timestamp_picco'])
     df['start_time_attivita'] = pd.to_datetime(df['start_time_attivita'])
 
-    # Filtra per soggetto
+
     df_subject = df[df['subject_id'] == subject_id].copy()
 
-    # Parsing del periodo
     if period.startswith('last_'):
         days = int(period.split('_')[1])
         end_date = df_subject['timestamp_picco'].max()
@@ -37,7 +36,7 @@ def analyze_kitchen_activity(
 
 
 
-    # Filtra per periodo
+
     df_period = df_subject[(df_subject['timestamp_picco'] >= start_date) &
                            (df_subject['timestamp_picco'] <= end_date)]
 
@@ -45,7 +44,7 @@ def analyze_kitchen_activity(
         return ErrorResult(error="Nessun dato disponibile per il periodo specificato")  # ← CAMBIA QUI
 
 
-    # Calcola metriche aggregate
+
     num_days = (end_date - start_date).days + 1
     fascia_dist = df_period['fascia_oraria'].value_counts()
 
@@ -57,7 +56,7 @@ def analyze_kitchen_activity(
         "avg_duration_minutes": round(df_period['durata_attivita_minuti'].mean(), 2),
         "avg_temperature_max": round(df_period['temperatura_max'].mean(), 2),
         "total_cooking_time_hours": round(df_period['durata_attivita_minuti'].sum() / 60, 2),
-        "time_slot_distribution": TimeSlotDistribution(  # ← CAMBIA QUI
+        "time_slot_distribution": TimeSlotDistribution(
             mattina=int(fascia_dist.get('mattina', 0)),
             pranzo=int(fascia_dist.get('pranzo', 0)),
             cena=int(fascia_dist.get('cena', 0))
