@@ -7,6 +7,7 @@ import pandas as pd
 
 from backend.config.settings import SENSOR_DATA_PATH
 from backend.models.results import ErrorResult, MobilityAnalysisResult, MobilityTrendData
+
 @tool
 def analyze_mobility_patterns(
     subject_id: Annotated[int, "ID of the subject to analyze, integer"],
@@ -19,9 +20,7 @@ def analyze_mobility_patterns(
     df = pd.read_csv(SENSOR_DATA_PATH)
     df['timestamp'] = pd.to_datetime(df['timestamp'])
 
-
     df_subject = df[df['subject_id'] == subject_id].copy()
-
 
     if period.startswith('last_'):
         days = int(period.split('_')[1])
@@ -32,20 +31,16 @@ def analyze_mobility_patterns(
         start_date = pd.to_datetime(dates[0])
         end_date = pd.to_datetime(dates[1])
 
-
     df_period = df_subject[(df_subject['timestamp'] >= start_date) &
-                           (df_subject['timestamp'] <= end_date)]
+                           (df_subject['timestamp'] <= end_date)].copy()  # ✅ Aggiungi .copy() qui
 
     if df_period.empty:
         return ErrorResult(error="Nessun dato disponibile per il periodo specificato")
 
-
     num_days = (end_date - start_date).days + 1
 
-
-
-
     room_dist = df_period['room'].value_counts()
+
 
     df_period['hour'] = df_period['timestamp'].dt.hour
     df_period['time_slot'] = df_period['hour'].apply(
@@ -70,12 +65,6 @@ def analyze_mobility_patterns(
         },
         "trends": None
     }
-
-
-
-    results["time_slot_activity"] = {slot: int(count) for slot, count in time_slot_dist.items()}
-
-
 
     mid_point = start_date + (end_date - start_date) / 2
     first_half = df_period[df_period['timestamp'] < mid_point]

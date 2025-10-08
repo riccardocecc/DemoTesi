@@ -27,21 +27,11 @@ def run_demo(question: str, max_iterations: int = 10):
     return final_response
 
 if __name__ == "__main__":
-    # Salva l'immagine su file
+    # Salva il grafo come immagine PNG
     #png_data = graph.get_graph().draw_mermaid_png()
-    #with open("graph.png", "wb") as f:
-     #   f.write(png_data)s
 
-    #print("Grafo salvato come 'graph.png'")
+    #with open("total_graph.png", "wb") as f:
+     #   f.write(png_data)
 
-    # Opzionalmente, apri l'immagine automaticamente
-    #import os
-    #import platform
-
-    #if platform.system() == 'Darwin':  # macOS
-     #   os.system('open grafo_serenade.png')
-    #elif platform.system() == 'Windows':
-     ##   os.system('start grafo_serenade.png')
-    #else:  # Linux
-       # os.system('xdg-open grafo_serenade.png')
-    run_demo("Come ha dormito e come ha cucinato il soggetto 2 nell'ultima settimana?")
+    #print("Grafo salvato come 'grafo_langgraph.png'")
+    run_demo("Come ha dormito il soggetto 2 nell'ultima settimana e come si è mosso?")

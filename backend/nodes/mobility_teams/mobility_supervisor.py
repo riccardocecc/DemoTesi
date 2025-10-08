@@ -9,11 +9,14 @@ from backend.models.state import State
 def make_supervisor_mobility(llm: BaseChatModel, members: list[str]):
     options = ["FINISH"] + members
     system_prompt = (
-        "You are a supervisor tasked with managing a conversation between the"
-        f" following workers: {members}. Given the following user request,"
-        " respond with the worker to act next. Each worker will perform a"
-        " task and respond with their results and status. When finished,"
-        " respond with FINISH."
+        "Sei un supervisore che coordina i task di analisi della mobilità domestica.\n"
+        f"Workers disponibili: {members}\n\n"
+        "Workers e le loro capacità:\n"
+        "- analyze_mobility_node: Analizza i pattern di movimento del soggetto all'interno della casa utilizzando sensori ambientali.\n"
+        "REGOLE IMPORTANTI:\n"
+        "1. Chiama analyze_mobility_node per mobility metrics\n"
+        "2. Only respond with FINISH after ALL relevant workers have completed their tasks\n\n"
+        "Analyze the user request and route to the appropriate worker(s)."
     )
 
     class Router(TypedDict):

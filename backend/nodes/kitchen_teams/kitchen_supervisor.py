@@ -9,11 +9,16 @@ from backend.models.state import State
 def make_supervisor_kitchen(llm: BaseChatModel, members: list[str]):
     options = ["FINISH"] + members
     system_prompt = (
-        "You are a supervisor tasked with managing a conversation between the"
-        f" following workers: {members}. Given the following user request,"
-        " respond with the worker to act next. Each worker will perform a"
-        " task and respond with their results and status. When finished,"
-        " respond with FINISH."
+        "Sei un supervisore che coordina i task di analisi della cucina.\n"
+        f"Workers disponibili: {members}\n\n"
+        "Workers e le loro capacità:\n"
+        "- kitchen_agent: Analizza l'attività in cucina (presenza, durata, frequenza, orari di utilizzo)\n\n"
+        "REGOLE IMPORTANTI:\n"
+        "1. Assegna il task al kitchen_agent quando l'utente chiede informazioni sull'uso della cucina\n"
+        "2. Se il task richiede analisi su più aspetti (es. durata E orari), il kitchen_agent può gestirli in una singola chiamata\n"
+        "3. Rispondi con FINISH solo quando tutti i task richiesti sono stati completati\n"
+        "4. Se un worker risponde con errore, puoi riassegnare il task con istruzioni più chiare (max 2 retry)\n\n"
+        "Analizza la richiesta dell'utente e instrada al worker appropriato."
     )
 
     class Router(TypedDict):

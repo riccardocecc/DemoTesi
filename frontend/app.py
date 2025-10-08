@@ -130,7 +130,7 @@ def create_daily_heart_rate_chart(data):
         st.plotly_chart(fig_hist, use_container_width=True)
 
     with col2:
-        st.subheader("Variabilità HR")
+        st.subheader("Variabilita HR")
 
         # Calcola variazioni giornaliere
         hr_df['Variazione'] = hr_df['HR Media'].diff()
@@ -151,20 +151,18 @@ def create_daily_heart_rate_chart(data):
         std_hr = hr_df['HR Media'].std()
         if std_hr < 3:
             stability = "Molto Stabile"
-            color = "green"
+            st.success(f"**Stabilita HR:** {stability}")
         elif std_hr < 5:
             stability = "Stabile"
-            color = "lightgreen"
+            st.info(f"**Stabilita HR:** {stability}")
         elif std_hr < 7:
             stability = "Moderata"
-            color = "orange"
+            st.warning(f"**Stabilita HR:** {stability}")
         else:
             stability = "Variabile"
-            color = "red"
+            st.error(f"**Stabilita HR:** {stability}")
 
-        st.markdown(f"**Stabilità HR:** :{color}[{stability}]")
 
-# Funzioni per creare grafici
 def create_sleep_charts(data):
     """Crea grafici per i dati del sonno"""
     if "error" in data:
@@ -207,14 +205,14 @@ def create_sleep_charts(data):
         vitals_data = pd.DataFrame({
             'Parametro': ['Frequenza Cardiaca', 'Frequenza Respiratoria'],
             'Valore': [data.get('avg_hr', 0), data.get('avg_rr', 0)],
-            'Unità': ['bpm', 'rpm']
+            'Unita': ['bpm', 'rpm']
         })
 
         fig = go.Figure()
         fig.add_trace(go.Bar(
             x=vitals_data['Parametro'],
             y=vitals_data['Valore'],
-            text=[f"{v:.1f} {u}" for v, u in zip(vitals_data['Valore'], vitals_data['Unità'])],
+            text=[f"{v:.1f} {u}" for v, u in zip(vitals_data['Valore'], vitals_data['Unita'])],
             textposition='auto',
             marker_color=['#FF6B6B', '#4ECDC4']
         ))
@@ -262,13 +260,13 @@ def create_kitchen_charts(data):
     # Metriche principali
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Attività Totali", data.get("total_activities", 0))
+        st.metric("Attivita Totali", data.get("total_activities", 0))
     with col2:
-        st.metric("Attività/Giorno", f"{data.get('activities_per_day', 0):.1f}")
+        st.metric("Attivita/Giorno", f"{data.get('activities_per_day', 0):.1f}")
     with col3:
         st.metric("Durata Media", f"{data.get('avg_duration_minutes', 0):.1f} min")
     with col4:
-        st.metric("Temp. Media Max", f"{data.get('avg_temperature_max', 0):.1f}°C")
+        st.metric("Temp. Media Max", f"{data.get('avg_temperature_max', 0):.1f} C")
 
     col1, col2 = st.columns(2)
 
@@ -279,17 +277,17 @@ def create_kitchen_charts(data):
         if time_dist:
             time_df = pd.DataFrame({
                 'Fascia': ['Mattina', 'Pranzo', 'Cena'],
-                'Attività': [
+                'Attivita': [
                     time_dist.get('mattina', 0),
                     time_dist.get('pranzo', 0),
                     time_dist.get('cena', 0)
                 ]
             })
 
-            fig = px.bar(time_df, x='Fascia', y='Attività',
-                         color='Attività',
+            fig = px.bar(time_df, x='Fascia', y='Attivita',
+                         color='Attivita',
                          color_continuous_scale='Oranges',
-                         text='Attività')
+                         text='Attivita')
             fig.update_traces(textposition='outside')
             fig.update_layout(height=300, showlegend=False)
             st.plotly_chart(fig, use_container_width=True)
@@ -328,8 +326,8 @@ def create_kitchen_charts(data):
         with col1:
             change = trends.get('activity_frequency_change', 0)
             st.metric(
-                "Variazione Frequenza Attività",
-                f"{abs(change):.2f} attività/giorno",
+                "Variazione Frequenza Attivita",
+                f"{abs(change):.2f} attivita/giorno",
                 delta=f"{change:+.2f}",
                 delta_color="normal" if change >= 0 else "inverse"
             )
@@ -344,7 +342,7 @@ def create_kitchen_charts(data):
 
 
 def create_mobility_charts(data):
-    """Crea grafici per i dati della mobilità"""
+    """Crea grafici per i dati della mobilita"""
     if "error" in data:
         st.error(f"{data['error']}")
         return
@@ -400,12 +398,12 @@ def create_mobility_charts(data):
 
     # Attività per fascia oraria
     if data.get('time_slot_activity'):
-        st.subheader("Attività per Fascia Oraria")
+        st.subheader("Attivita per Fascia Oraria")
         time_slots = data['time_slot_activity']
 
         time_df = pd.DataFrame({
             'Fascia': list(time_slots.keys()),
-            'Attività': list(time_slots.values())
+            'Attivita': list(time_slots.values())
         })
 
         # Ordina per fascia oraria logica
@@ -413,7 +411,7 @@ def create_mobility_charts(data):
         time_df['Fascia'] = pd.Categorical(time_df['Fascia'], categories=order, ordered=True)
         time_df = time_df.sort_values('Fascia')
 
-        fig = px.line(time_df, x='Fascia', y='Attività',
+        fig = px.line(time_df, x='Fascia', y='Attivita',
                       markers=True,
                       line_shape='spline',
                       color_discrete_sequence=['#4ECDC4'])
@@ -430,7 +428,7 @@ def create_mobility_charts(data):
         with col1:
             change = trends.get('activity_frequency_change', 0)
             st.metric(
-                "Variazione Frequenza Attività",
+                "Variazione Frequenza Attivita",
                 f"{abs(change):.2f} rilevazioni/giorno",
                 delta=f"{change:+.2f}",
                 delta_color="normal" if change >= 0 else "inverse"
@@ -497,11 +495,12 @@ if submit_button:
                             agent_name = response.get("agent_name", "Unknown")
                             agent_data = response.get("data", {})
 
-                            # Mappa titoli
+                            # Mappa titoli e colori per tutti gli agenti
                             agent_info = {
                                 "sleep_agent": ("Analisi del Sonno", "#FF6B6B"),
-                                "kitchen_agent": ("Analisi Attività Cucina", "#FFA500"),
-                                "mobility_agent": ("Analisi Mobilità", "#4ECDC4")
+                                "heart_freq_agent": ("Analisi Frequenza Cardiaca", "#FF4444"),
+                                "kitchen_agent": ("Analisi Attivita Cucina", "#FFA500"),
+                                "mobility_agent": ("Analisi Mobilita", "#4ECDC4")
                             }
 
                             title, color = agent_info.get(agent_name, ("Analisi", "#808080"))
@@ -510,15 +509,17 @@ if submit_button:
 
                             # Crea grafici specifici per tipo di agente
                             if agent_name == "sleep_agent":
-                                # Controlla se è un DailyHeartRateResult
-                                if "daily_avg_hr" in agent_data:
-                                    create_daily_heart_rate_chart(agent_data)
-                                else:
-                                    create_sleep_charts(agent_data)
+                                create_sleep_charts(agent_data)
+                            elif agent_name == "heart_freq_agent":
+                                create_daily_heart_rate_chart(agent_data)
                             elif agent_name == "kitchen_agent":
                                 create_kitchen_charts(agent_data)
                             elif agent_name == "mobility_agent":
                                 create_mobility_charts(agent_data)
+                            else:
+                                # Gestione agenti sconosciuti o futuri
+                                st.info(f"Tipo di agente '{agent_name}' non riconosciuto")
+                                st.json(agent_data)
 
                             st.markdown("---")
 

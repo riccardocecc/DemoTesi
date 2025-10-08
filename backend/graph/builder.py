@@ -10,8 +10,6 @@ from backend.nodes.planner_node import create_planner_node
 from backend.nodes.correlation_analyzer_node import create_correlation_analyzer_node
 
 
-
-
 def build_graph():
     """
     Costruisce il grafo completo del sistema multi-agente con teams
@@ -26,7 +24,6 @@ def build_graph():
     sleep_team_graph = build_sleep_graph(llm_agents, llm_supervisor)
     kitchen_team_graph = build_kitchen_graph(llm_agents, llm_supervisor)
     mobility_team_graph = build_mobility_graph(llm_agents, llm_supervisor)
-
 
     planner = create_planner_node(llm_query)
     supervisor = make_supervisor_node(

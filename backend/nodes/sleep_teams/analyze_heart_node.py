@@ -13,7 +13,12 @@ from backend.tools.sleep_tools import analyze_daily_heart_rate
 
 def create_analyze_heart_agent(llm):
     tools = [analyze_daily_heart_rate]
-    return create_react_agent(llm, tools=tools)
+    system_message = (
+        "You are a specialized agent for analyzing heart rate during sleep. "
+        "You MUST use the analyze_daily_heart_rate tool to retrieve data. "
+        "Always call the tool with the subject_id and period from the user's request."
+    )
+    return create_react_agent(llm, tools=tools, prompt=system_message)
 
 
 def create_analyze_heart_node(analyze_heart_agent):

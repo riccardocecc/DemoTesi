@@ -86,7 +86,7 @@ Piano:
 - subject_id: 2
 - period: "last_7_days"
 - tasks: [
-    {{"team": "sleep_team", "instruction": "Analizza come ha dormito il soggetto 2 negli ultimi 7 giorni: qualità del sonno, durata, eventuali risvegli e pattern generali"}}
+    {{"team": "sleep_team", "instruction": "Analizza come ha dormito il soggetto 2 negli ultimi 7 giorni"}}
   ]
 
 Domanda: "come ha dormito e come si è comportato il cuore durante il sonno del soggetto 2 nelle ultime due settimane e come ha cucinato"
@@ -94,8 +94,8 @@ Piano:
 - subject_id: 2
 - period: "last_14_days"
 - tasks: [
-    {{"team": "sleep_team", "instruction": "Analizza come ha dormito il soggetto 2 nelle ultime due settimane e come si è comportato il cuore durante il sonno: qualità del sonno, durata, frequenza cardiaca notturna, variazioni e anomalie"}},
-    {{"team": "kitchen_team", "instruction": "Analizza come ha cucinato il soggetto 2 nelle ultime due settimane: frequenza delle attività in cucina, preparazione pasti e pattern culinari"}}
+    {{"team": "sleep_team", "instruction": "Analizza come ha dormito il soggetto 2 nelle ultime due settimane e come si è comportato il cuore durante il sonno"}},
+    {{"team": "kitchen_team", "instruction": "Analizza come ha cucinato il soggetto 2 nelle ultime due settimane"}}
   ]
 
 Domanda: "Analizza sonno, frequenza cardiaca notturna e cucina del soggetto 1 nell'ultimo mese"
@@ -103,8 +103,8 @@ Piano:
 - subject_id: 1
 - period: "last_30_days"
 - tasks: [
-    {{"team": "sleep_team", "instruction": "Analizza il sonno e la frequenza cardiaca notturna del soggetto 1 negli ultimi 30 giorni: qualità del sonno, durata, pattern cardiaci durante il sonno e eventuali anomalie"}},
-    {{"team": "kitchen_team", "instruction": "Analizza l'attività in cucina del soggetto 1 negli ultimi 30 giorni: preparazione pasti, utilizzo elettrodomestici e pattern culinari"}}
+    {{"team": "sleep_team", "instruction": "Analizza il sonno e la frequenza cardiaca notturna del soggetto 1 negli ultimi 30 giorni"}},
+    {{"team": "kitchen_team", "instruction": "Analizza l'attività in cucina del soggetto 1 negli ultimi 30 giorni"}}
   ]
 
 Domanda: "Mobilità, tempo in cucina, sonno profondo e respiro notturno del soggetto 3 dal 2024-01-01 al 2024-01-31"
@@ -112,9 +112,9 @@ Piano:
 - subject_id: 3
 - period: "2024-01-01,2024-01-31"
 - tasks: [
-    {{"team": "sleep_team", "instruction": "Analizza il sonno profondo e il respiro notturno del soggetto 3 dal 2024-01-01 al 2024-01-31: fasi del sonno profondo, durata, qualità respiratoria notturna e pattern"}},
-    {{"team": "kitchen_team", "instruction": "Analizza il tempo trascorso in cucina dal soggetto 3 dal 2024-01-01 al 2024-01-31: durata delle sessioni, frequenza e orari delle attività"}},
-    {{"team": "mobility_team", "instruction": "Analizza la mobilità del soggetto 3 dal 2024-01-01 al 2024-01-31: stanze visitate, pattern di movimento e livello di attività"}}
+    {{"team": "sleep_team", "instruction": "Analizza il sonno profondo e il respiro notturno del soggetto 3 dal 2024-01-01 al 2024-01-31"}},
+    {{"team": "kitchen_team", "instruction": "Analizza il tempo trascorso in cucina dal soggetto 3 dal 2024-01-01 al 2024-01-31"}},
+    {{"team": "mobility_team", "instruction": "Analizza la mobilità del soggetto 3 dal 2024-01-01 al 2024-01-31"}}
   ]
 
 Domanda: "Il soggetto 5 si muove abbastanza? E come cucina?"
@@ -122,8 +122,8 @@ Piano:
 - subject_id: 5
 - period: "last_30_days"
 - tasks: [
-    {{"team": "mobility_team", "instruction": "Analizza se il soggetto 5 si muove abbastanza negli ultimi 30 giorni: livello di attività fisica, mobilità indoor, tempo trascorso in movimento e confronto con livelli raccomandati"}},
-    {{"team": "kitchen_team", "instruction": "Analizza come cucina il soggetto 5 negli ultimi 30 giorni: frequenza delle attività culinarie, preparazione pasti, utilizzo della cucina e pattern"}}
+    {{"team": "mobility_team", "instruction": "Analizza se il soggetto 5 si muove abbastanza negli ultimi 30 giorni"}},
+    {{"team": "kitchen_team", "instruction": "Analizza come cucina il soggetto 5 negli ultimi 30 giorni"}}
   ]
 
 {format_instructions}"""),

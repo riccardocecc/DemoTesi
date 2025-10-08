@@ -13,7 +13,15 @@ from backend.tools.sleep_tools import analyze_sleep_changes
 
 def create_analyze_sleep_agent(llm):
     tools = [analyze_sleep_changes]
-    return create_react_agent(llm, tools=tools)
+    system_message = (
+        "You are a specialized agent for analyzing sleep patterns and quality. "
+        "You MUST use the analyze_sleep_changes tool to retrieve sleep data. "
+        "Always call the tool with the subject_id and period from the user's request. "
+        "Focus exclusively on sleep metrics: sleep duration, sleep phases (REM, deep, light), "
+        "sleep efficiency, wake-up counts, and out-of-bed episodes. "
+        "Do NOT analyze heart rate or respiratory rate in detail - those are handled by other specialized agents."
+    )
+    return create_react_agent(llm, tools=tools, prompt=system_message)
 
 
 def create_analyze_sleep_node(analyze_sleep_agent):
