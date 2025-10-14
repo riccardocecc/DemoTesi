@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from langgraph.graph import MessagesState
 from typing_extensions import TypedDict, Literal
-from typing import Any
+from typing import Any, Optional
 from backend.models.results import SleepAnalysisResult, KitchenAnalysisResult,MobilityAnalysisResult,ErrorResult
 
 
@@ -16,6 +16,14 @@ class TeamResponse(TypedDict):
     structured_responses: list[AgentResponse]
     team_name: str
 
+class GraphData(TypedDict):
+    """Rappresenta un singolo grafico generato"""
+    id: str
+    title: str
+    type: str
+    plotly_json: dict[str, Any]
+
+
 class State(MessagesState):
     """State globale del grafo con risposte strutturate"""
     next: str
@@ -23,4 +31,5 @@ class State(MessagesState):
     structured_responses: list[TeamResponse]
     execution_plan: Any
     completed_tasks: set[str]
+    graphs: Optional[list[GraphData]]
 

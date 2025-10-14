@@ -34,4 +34,4 @@ if __name__ == "__main__":
      #   f.write(png_data)
 
     #print("Grafo salvato come 'grafo_langgraph.png'")
-    run_demo("Come ha dormito il soggetto 2 nell'ultima settimana e come si è mosso?")
+    run_demo("Fase REM del soggetto 2 nelle ultime due settimane?")

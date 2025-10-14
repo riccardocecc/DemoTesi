@@ -1,6 +1,5 @@
 from typing import Literal
 from langgraph.types import Command
-from langgraph.graph import END
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from backend.models.state import State
@@ -12,7 +11,7 @@ def create_correlation_analyzer_node(llm):
     e sintetizza la risposta finale all'utente.
     """
 
-    def correlation_analyzer_node(state: State) -> Command[Literal["__end__"]]:
+    def correlation_analyzer_node(state: State) -> Command[Literal["visualization_node"]]:  # ← CAMBIATO DA __end__
         """
         Riceve tutti i dati strutturati dagli agenti e genera
         una risposta finale completa, analizzando eventuali correlazioni.
@@ -41,25 +40,11 @@ def create_correlation_analyzer_node(llm):
             f"\n{'=' * 60}\n"
             f"ISTRUZIONI PER LA RISPOSTA:\n"
             f"{'=' * 60}\n\n"
-            f"1. ANALISI DEI DATI:\n"
-            f"   - Interpreta tutti i dati TypedDict ricevuti da ciascun agente\n"
-            f"   - Identifica pattern, trend e anomalie\n\n"
-            f"2. CORRELAZIONI:\n"
-            f"   - Se la domanda richiede correlazioni tra diversi domini (es. sonno e mobilità),\n"
-            f"     analizza le relazioni tra i dati\n"
-            f"   - Cerca pattern temporali comuni o divergenti\n"
-            f"   - Evidenzia cause-effetto potenziali\n\n"
-            f"3. FORMATO DELLA RISPOSTA:\n"
-            f"   - Usa un linguaggio naturale, chiaro e professionale in italiano\n"
-            f"   - Struttura la risposta in modo logico e leggibile\n"
-            f"   - Evidenzia i punti chiave usando grassetto o elenchi quando appropriato\n"
-            f"   - Se ci sono metriche numeriche, spiegale in modo comprensibile\n\n"
-            f"4. COMPLETEZZA:\n"
-            f"   - Rispondi direttamente e completamente alla domanda originale\n"
-            f"   - Non omettere informazioni rilevanti dai dati ricevuti\n"
-            f"   - Se i dati mostrano trend, descrivili chiaramente\n\n"
-            f"5. INSIGHTS:\n"
-            f"   - Fornisci interpretazioni significative dei dati\n"
+            f"1. Analizza i dati ricevuti identificando pattern, trend e anomalie\n"
+            f"2. Se richiesto, evidenzia correlazioni tra diversi domini\n"
+            f"3. Rispondi in italiano con linguaggio chiaro e professionale\n"
+            f"4. Usa grassetto per i punti chiave e spiega le metriche in modo comprensibile\n"
+            f"5. Fornisci una sintesi concisa ma completa, senza omettere informazioni rilevanti\n"
         )
 
         messages = [
@@ -67,7 +52,7 @@ def create_correlation_analyzer_node(llm):
                 "Sei un assistente esperto nell'analisi di dati sanitari e comportamentali. "
                 "Il tuo compito è analizzare dati strutturati provenienti da diversi agenti "
                 "(sonno, cucina, mobilità) e identificare correlazioni, pattern e insight significativi. "
-                "Trasforma questi dati tecnici in risposte chiare, accessibili e ricche di significato "
+                "Trasforma questi dati tecnici in risposte chiare ma brevi "
                 "per l'utente finale. Usa un tono professionale ma empatico."
             )),
             HumanMessage(content=analysis_prompt)
@@ -82,10 +67,10 @@ def create_correlation_analyzer_node(llm):
         print(f"{'-' * 60}\n")
 
         return Command(
-            goto=END,
+            goto="visualization_node",  # ← CAMBIATO DA END
             update={
                 "messages": [AIMessage(content=final_response.content, name="correlation_analyzer")],
-                "next": "FINISH"
+                "next": "visualization_node"  # ← CAMBIATO DA FINISH
             }
         )
 

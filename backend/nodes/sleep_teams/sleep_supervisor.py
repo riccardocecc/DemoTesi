@@ -1,47 +1,155 @@
-from typing import List, Optional, Literal, TypedDict
+from typing import Literal, TypedDict
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from langgraph.graph import StateGraph, MessagesState, START, END
+from langgraph.graph import END
 from langgraph.types import Command
-from langchain_core.messages import HumanMessage, trim_messages
+from langchain_core.messages import HumanMessage
 
 from backend.models.state import State
 
-#al momento è basato su LLM. Si può creare un suprevisor deterministico come il top_supervisor?
-#se la query comprende l'utilizzo di diversi agenti sotto la supervisione di questo supervisor forse è
-#meglio scomporla piuttosto che inoltrarla ad agenti che non gestiscono domini presenti nella richiesta
-def make_supervisor_sleep(llm: BaseChatModel, members: list[str]) -> str:
-    options = ["FINISH"] + members
+
+def make_supervisor_sleep(llm: BaseChatModel, members: list[str]):
+    """
+    Crea il supervisor per il team Sleep.
+
+    Il supervisor coordina i worker e decide se generare visualizzazioni.
+    """
+
+    # Options per il routing: worker + visualization + FINISH
+    options = ["FINISH"] + members + ["sleep_visualization"]
+
     system_prompt = (
         "You are a supervisor coordinating sleep analysis tasks.\n"
         f"Available workers: {members}\n\n"
         "Workers and their capabilities:\n"
         "- analyze_sleep_node: Analyzes sleep quality, duration, phases (REM, deep, light), awakenings\n"
-        "- analyze_heart_node: Analyzes heart rate during sleep and its variations\n\n"
-        "IMPORTANT RULES:\n"
-        "1. If the task mentions BOTH sleep AND heart/cardiac aspects, you MUST call BOTH workers\n"
-        "2. Call analyze_sleep_node first for sleep metrics\n"
-        "3. Call analyze_heart_node for cardiac data\n"
-        "4. Only respond with FINISH after ALL relevant workers have completed their tasks\n\n"
-        "Analyze the user request and route to the appropriate worker(s)."
+        "- analyze_heart_node: Analyzes heart rate during sleep and its variations\n"
+        "- sleep_visualization: Generates Plotly graphs from collected data\n\n"
+        "WORKFLOW RULES:\n"
+        "1. FIRST PHASE - Data Collection:\n"
+        "   - Analyze the user request\n"
+        "   - Route to appropriate worker(s) to collect data\n"
+        "   - If query mentions BOTH sleep AND heart aspects, call BOTH workers\n"
+        "   - Workers will return to you after completing their tasks\n\n"
+        "2. SECOND PHASE - Decision:\n"
+        "   - After ALL relevant workers have completed their tasks\n"
+        "   - DECIDE if visualization is needed based on the user query\n\n"
+        "WHEN TO USE VISUALIZATION:\n"
+        "✅ Generate graphs if user asks for:\n"
+        "   - Visual representation (\"mostrami\", \"visualizza\", \"grafico\")\n"
+        "   - Analysis that benefits from graphs (\"come ha dormito\", \"analizza il sonno\")\n"
+        "   - Trends, patterns, distributions\n"
+        "   - Comparisons over time\n"
+        "   - Any query where a graph would help understand the data\n\n"
+        "❌ Skip visualization if user asks for:\n"
+        "   - Simple numeric answers (\"quante ore ha dormito\")\n"
+        "   - Yes/no questions (\"ha dormito bene?\")\n"
+        "   - Specific single values (\"qual è l'efficienza del sonno\")\n"
+        "   - Only textual explanations explicitly requested\n\n"
+        "DECISION LOGIC:\n"
+        "- If no workers have been called yet → route to appropriate worker(s)\n"
+        "- If some workers completed but others pending → route to pending workers\n"
+        "- If ALL required workers completed:\n"
+        "  → If visualization would help → route to 'sleep_visualization'\n"
+        "  → If only text answer needed → route to 'FINISH'\n\n"
+        "DEFAULT: When in doubt, prefer visualization (users usually benefit from graphs).\n\n"
+        "Analyze the state and user intent to decide the next step."
     )
 
     class Router(TypedDict):
-        """Worker to route to next. If no workers needed, route to FINISH."""
+        """Worker to route to next."""
         next: Literal[*options]
 
-    def supervisor_node(state: State) -> Command[Literal[*members, "__end__"]]:
-        """An LLM-based router."""
+    def supervisor_node(state: State) -> Command[Literal[*members, "sleep_visualization", "__end__"]]:
+        """
+        LLM-based router che coordina worker e decide se generare visualizzazioni.
+        """
+
+        # Controlla quali task sono stati completati
+        completed_tasks = state.get("completed_tasks", set())
+        structured_responses = state.get("structured_responses", [])
+        original_question = state.get("original_question", "")
+
+        # Trova le risposte del sleep_team
+        sleep_team_responses = []
+        for team_resp in structured_responses:
+            if team_resp["team_name"] == "sleep_team":
+                sleep_team_responses = team_resp["structured_responses"]
+                break
+
+        # Estrai gli agenti che hanno già risposto
+        completed_agents = set()
+        for resp in sleep_team_responses:
+            completed_agents.add(resp["agent_name"])
+
+        # Controlla se la visualizzazione è già stata chiamata
+        visualization_called = any(
+            msg.content.startswith("VISUALIZATION")
+            for msg in state["messages"]
+            if hasattr(msg, 'name') and msg.name == "sleep_supervisor"
+        )
+
+        print(f"\n{'=' * 60}")
+        print("SLEEP SUPERVISOR STATUS:")
+        print(f"Original question: {original_question}")
+        print(f"Completed tasks: {completed_tasks}")
+        print(f"Completed agents: {completed_agents}")
+        print(f"Visualization already called: {visualization_called}")
+        print(f"{'=' * 60}\n")
+
+        # Prepara il messaggio per l'LLM con context
+        context_message = (
+            f"CURRENT STATE:\n"
+            f"- Original user question: '{original_question}'\n"
+            f"- Completed agents: {list(completed_agents)}\n"
+            f"- Available workers: {members}\n"
+            f"- Data collected: {len(sleep_team_responses)} agent responses\n"
+            f"- Visualization already called: {visualization_called}\n\n"
+            f"TASK: Analyze the user's question and decide:\n"
+            f"1. Do we need to call more workers to collect data?\n"
+            f"2. Or should we generate visualizations?\n"
+            f"3. Or can we finish without visualizations?\n\n"
+            f"Remember: Prefer visualization unless the user explicitly wants only text/numbers."
+        )
+
         messages = [
-            {"role": "system", "content": system_prompt},
-        ] + state["messages"]
+                       {"role": "system", "content": system_prompt},
+                       {"role": "user", "content": context_message}
+                   ] + state["messages"][-5:]  # Ultimi 5 messaggi per context
+
         response = llm.with_structured_output(Router).invoke(messages)
         goto = response["next"]
+
+        # Safety check: se visualizzazione già chiamata, non richiamarla
+        if goto == "sleep_visualization" and visualization_called:
+            print("⚠️  Visualization already called, routing to FINISH")
+            goto = "FINISH"
+
         if goto == "FINISH":
             goto = END
 
-        print("Sleep supervisor goto:", goto)
-        print(f"{'=' * 60}")
-        return Command(goto=goto, update={"next": goto})
+        print(f"Sleep supervisor decision: {goto}")
+        print(f"{'=' * 60}\n")
+
+        # Messaggio di tracking
+        if goto == "sleep_visualization":
+            tracking_msg = "VISUALIZATION: Generating graphs"
+        elif goto == END:
+            tracking_msg = "FINISH: Completing without visualization"
+        else:
+            tracking_msg = f"ROUTING: Calling {goto}"
+
+        update_msg = HumanMessage(
+            content=tracking_msg,
+            name="sleep_supervisor"
+        )
+
+        return Command(
+            goto=goto,
+            update={
+                "next": goto,
+                "messages": [update_msg]
+            }
+        )
 
     return supervisor_node

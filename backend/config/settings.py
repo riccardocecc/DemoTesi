@@ -15,7 +15,7 @@ llm_supervisor  = ChatGoogleGenerativeAI(
     temperature=0.3,  # creativo
     top_p=0.5,  # varietà lessicale
     top_k=20,  # maggiori opzioni (da vedere meglio)
-    max_output_tokens=4096,  #lunghezza risposta (forse anche meno)
+    max_output_tokens=2096,  #lunghezza risposta (forse anche meno)
     timeout=60.0,
     max_retries=2
 )
@@ -41,6 +41,18 @@ llm_query = ChatGoogleGenerativeAI(
     timeout=30.0,
     max_retries=2
 )
+
+llm_visualization = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash",
+    google_api_key=google_api_key,
+    temperature=0,  # Leggermente creativo per intent detection
+    top_p=0,
+    top_k=10,
+    max_output_tokens=1024,
+    timeout=30.0,
+    max_retries=2
+)
+
 
 
 
