@@ -1,5 +1,5 @@
 """
-Nodo di visualizzazione per il team Sleep - VERSIONE SEMPLICE
+Nodo di visualizzazione per il team Kitchen - VERSIONE SEMPLICE
 Un solo agente ReAct che decide quali grafici generare e li crea.
 """
 
@@ -10,87 +10,73 @@ from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
 from langchain_core.messages import HumanMessage, ToolMessage
 
-from backend.models.state import State, GraphData, AgentResponse
-from backend.tools.visulizzation_sleep_tools import (
-    generate_sleep_phases_chart,
-    generate_sleep_efficiency_gauge,
-    generate_sleep_disturbances_chart,
-    generate_heart_rate_timeline
-)
+from backend.models.state import State, GraphData
+from backend.tools.visualization_kitchen_tool import generate_kitchen_timeslot_chart, generate_kitchen_metrics_dashboard
 
 
-def create_sleep_visualization_node(llm):
+def create_kitchen_visualization_node(llm):
     """
     Crea un nodo di visualizzazione semplice con un agente ReAct.
     """
 
     # Tool disponibili
     tools = [
-        generate_sleep_phases_chart,
-        generate_sleep_efficiency_gauge,
-        generate_sleep_disturbances_chart,
-        generate_heart_rate_timeline
+        generate_kitchen_timeslot_chart,
+        generate_kitchen_metrics_dashboard
     ]
 
     # System prompt conciso
     system_prompt = (
-        "You generate Plotly graphs for sleep analysis.\n\n"
+        "You generate Plotly graphs for kitchen usage analysis.\n\n"
         "AVAILABLE TOOLS:\n"
-        "- generate_sleep_phases_chart: pie chart of REM/deep/light sleep\n"
-        "- generate_sleep_efficiency_gauge: gauge showing efficiency 0-100%\n"
-        "- generate_sleep_disturbances_chart: bar chart of wake-ups\n"
-        "- generate_heart_rate_timeline: line chart of heart rate\n\n"
+        "- generate_kitchen_timeslot_chart: bar chart of usage by time slot (breakfast/lunch/dinner)\n"
+        "- generate_kitchen_metrics_dashboard: dashboard with key metrics (frequency, duration, total time)\n\n"
         "RULES:\n"
-        "- If query mentions specific aspects (REM, efficiency, etc), generate ONLY those graphs\n"
-        "- If query is generic ('how did they sleep?'), generate efficiency + phases (max 2 graphs)\n"
-        "- Use sleep_data for sleep tools, heart_data for heart tool\n"
+        "- If query mentions specific aspects (meal times, frequency, etc), generate ONLY those graphs\n"
+        "- If query is generic ('kitchen usage?'), generate both graphs\n"
+        "- Use kitchen_data for all tools\n"
         "- Generate graphs that answer the user's question\n"
     )
 
     # Crea agente ReAct
     agent = create_react_agent(llm, tools=tools, prompt=system_prompt)
 
-    def sleep_visualization_node(state: State) -> Command[Literal["sleep_team_supervisor"]]:
+    def kitchen_visualization_node(state: State) -> Command[Literal["kitchen_team_supervisor"]]:
         """
         Genera grafici usando un agente ReAct.
         """
         print(f"\n{'=' * 60}")
-        print("SLEEP VISUALIZATION - Generating graphs")
+        print("KITCHEN VISUALIZATION - Generating graphs")
         print(f"{'=' * 60}\n")
 
         original_question = state.get("original_question", "")
         team_responses = state.get("structured_responses", [])
 
-        # Estrai dati del team Sleep
-        sleep_data = None
-        heart_data = None
+        # Estrai dati del team Kitchen
+        kitchen_data = None
 
         for team_resp in team_responses:
-            if team_resp["team_name"] == "sleep_team":
+            if team_resp["team_name"] == "kitchen_team":
                 for resp in team_resp["structured_responses"]:
                     if "error" not in resp["data"]:
-                        if resp["agent_name"] == "sleep_agent":
-                            sleep_data = resp["data"]
-                        elif resp["agent_name"] == "heart_freq_agent":
-                            heart_data = resp["data"]
+                        if resp["agent_name"] == "kitchen_agent":
+                            kitchen_data = resp["data"]
                 break
 
-        if not sleep_data and not heart_data:
+        if not kitchen_data:
             print("⚠️  No data available, skipping visualization")
             return Command(
-                goto="sleep_team_supervisor",
+                goto="kitchen_team_supervisor",
                 update={
                     "messages": [HumanMessage(
                         content="Visualization skipped: no data",
-                        name="sleep_visualization"
+                        name="kitchen_visualization"
                     )]
                 }
             )
 
         # Costruisci prompt MINIMO per l'agente
-        data_dict = {"sleep_data": sleep_data, "heart_data": heart_data}
-
-
+        data_dict = {"kitchen_data": kitchen_data}
 
         # Prompt semplice: solo query + dati
         prompt = f"""Query: "{original_question}"
@@ -124,12 +110,12 @@ Data: {json.dumps(data_dict, default=str)}"""
             existing_graphs = state.get("graphs", [])
 
             return Command(
-                goto="sleep_team_supervisor",
+                goto="kitchen_team_supervisor",
                 update={
                     "graphs": existing_graphs + graphs,
                     "messages": [HumanMessage(
                         content=f"Visualization completed: {len(graphs)} graphs",
-                        name="sleep_visualization"
+                        name="kitchen_visualization"
                     )]
                 }
             )
@@ -137,13 +123,13 @@ Data: {json.dumps(data_dict, default=str)}"""
         except Exception as e:
             print(f"✗ Visualization failed: {e}")
             return Command(
-                goto="sleep_team_supervisor",
+                goto="kitchen_team_supervisor",
                 update={
                     "messages": [HumanMessage(
                         content=f"Visualization failed: {str(e)}",
-                        name="sleep_visualization"
+                        name="kitchen_visualization"
                     )]
                 }
             )
 
-    return sleep_visualization_node
+    return kitchen_visualization_node

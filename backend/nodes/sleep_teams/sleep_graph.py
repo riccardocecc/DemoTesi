@@ -5,7 +5,7 @@ from backend.models.state import State
 from backend.nodes.sleep_teams.analyze_heart_node import create_analyze_heart_agent, create_analyze_heart_node
 from backend.nodes.sleep_teams.analyze_sleep_node import create_analyze_sleep_agent, create_analyze_sleep_node
 from backend.nodes.sleep_teams.sleep_supervisor import make_supervisor_sleep
-from backend.nodes.sleep_teams.sleep_visualizzation_node import create_sleep_visualization_node
+from backend.nodes.sleep_teams.sleep_visualization_node import create_sleep_visualization_node
 
 
 def build_sleep_graph(llm_agents, llm_supervisor):

@@ -60,7 +60,7 @@ def make_supervisor_node(llm, teams: list[str]):
         return Command(
             goto=next_task.team,
             update={
-                "messages": [HumanMessage(
+                "messages": [AIMessage(
                     content=f"[TASK]: {next_task.instruction}",
                     name="supervisor_instruction"
                 )],

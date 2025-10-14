@@ -3,7 +3,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 
 from langgraph.graph import END
 from langgraph.types import Command
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
 
 from backend.models.state import State
 
@@ -128,7 +128,7 @@ def make_supervisor_sleep(llm: BaseChatModel, members: list[str]):
         messages = [
                        {"role": "system", "content": system_prompt},
                        {"role": "user", "content": context_message}
-                   ] + state["messages"][-5:]  # Ultimi 5 messaggi per context
+                   ] + state["messages"][-2:]  # Ultimi 5 messaggi per context
 
         response = llm.with_structured_output(Router).invoke(messages)
         goto = response["next"]
@@ -156,7 +156,7 @@ def make_supervisor_sleep(llm: BaseChatModel, members: list[str]):
         else:
             tracking_msg = f"ROUTING: Calling {goto}"
 
-        update_msg = HumanMessage(
+        update_msg = AIMessage(
             content=tracking_msg,
             name="sleep_supervisor"
         )

@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 # Configurazione della pagina
 st.set_page_config(
     page_title="Demo Multi Agent LLM",
-    page_icon="🤖",
+    page_icon="",
     layout="wide"
 )
 

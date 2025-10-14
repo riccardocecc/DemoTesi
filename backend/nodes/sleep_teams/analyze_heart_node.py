@@ -26,7 +26,7 @@ def create_analyze_heart_node(analyze_heart_agent):
         # Estrai task
         task = None
         for msg in reversed(state["messages"]):
-            if hasattr(msg, 'name') and msg.name == "supervisor_instruction":
+            if hasattr(msg, 'name') and msg.name == "sleep_supervisor":
                 task = msg.content.replace("[TASK]: ", "")
                 break
 
