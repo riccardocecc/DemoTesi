@@ -1,37 +1,40 @@
 
 from backend.graph.builder import build_graph
-
+import time
 graph = build_graph()
+
 
 def run_demo(question: str, max_iterations: int = 10):
     """
-    Esegue la demo del sistema con la domanda fornita e restituisce la risposta finale.
+    Esegue la demo e restituisce lo state finale completo.
     """
-    final_response = None
+    result = graph.invoke(
+        {"messages": [("user", question)]},
+        {"recursion_limit": max_iterations}
+    )
 
-    for s in graph.stream(
-            {"messages": [("user", question)]},
-            {"recursion_limit": max_iterations},
-    ):
-        for node_name, node_output in s.items():
-            if node_output is None:
-                continue
-
-            # Cattura la risposta finale dal correlation_analyzer
-            if node_name == "correlation_analyzer" and "messages" in node_output:
-                for msg in node_output["messages"]:
-                    if hasattr(msg, 'name') and msg.name == "correlation_analyzer":
-                        final_response = msg.content
-                        break
-
-    return final_response
+    return result
+import json
 
 if __name__ == "__main__":
-    # Salva il grafo come immagine PNG
-    #png_data = graph.get_graph().draw_mermaid_png()
+    start_time = time.time()
+    final_state = run_demo("Fase REM del soggetto 2 nelle ultime due settimane?")
+    end_time = time.time()
 
-    #with open("total_graph.png", "wb") as f:
-     #   f.write(png_data)
+    graphs = final_state.get("graphs")
 
-    #print("Grafo salvato come 'grafo_langgraph.png'")
-    run_demo("Fase REM del soggetto 2 nelle ultime due settimane?")
+    print(f"\n{'=' * 60}")
+    print("GRAPHS")
+    print(f"{'=' * 60}\n")
+
+    print(json.dumps(graphs, indent=2, ensure_ascii=False, default=str))
+
+    print(f"\n{'=' * 60}")
+    print(f"Tempo: {end_time - start_time:.3f}s")
+    print(f"{'=' * 60}")
+
+
+
+
+
+

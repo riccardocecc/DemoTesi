@@ -31,27 +31,33 @@ def make_supervisor_sleep(llm: BaseChatModel, members: list[str]):
         "   - Route to appropriate worker(s) to collect data\n"
         "   - If query mentions BOTH sleep AND heart aspects, call BOTH workers\n"
         "   - Workers will return to you after completing their tasks\n\n"
-        "2. SECOND PHASE - Decision:\n"
-        "   - After ALL relevant workers have completed their tasks\n"
-        "   - DECIDE if visualization is needed based on the user query\n\n"
+        "2. SECOND PHASE - Visualization (Optional):\n"
+        "   - After ALL data workers have completed\n"
+        "   - DECIDE if visualization is needed based on the user query\n"
+        "   - Call 'sleep_visualization' if graphs would help\n"
+        "   - Visualization will return to you after completion\n\n"
+        "3. FINAL PHASE - Completion:\n"
+        "   - After visualization (if called) returns\n"
+        "   - Route to 'FINISH' to exit the sleep team\n\n"
         "WHEN TO USE VISUALIZATION:\n"
         "✅ Generate graphs if user asks for:\n"
-        "   - Visual representation (\"mostrami\", \"visualizza\", \"grafico\")\n"
-        "   - Analysis that benefits from graphs (\"come ha dormito\", \"analizza il sonno\")\n"
+        "   - Visual representation ('mostrami', 'visualizza', 'grafico')\n"
+        "   - Analysis that benefits from graphs ('come ha dormito', 'analizza il sonno')\n"
         "   - Trends, patterns, distributions\n"
         "   - Comparisons over time\n"
         "   - Any query where a graph would help understand the data\n\n"
         "❌ Skip visualization if user asks for:\n"
-        "   - Simple numeric answers (\"quante ore ha dormito\")\n"
-        "   - Yes/no questions (\"ha dormito bene?\")\n"
-        "   - Specific single values (\"qual è l'efficienza del sonno\")\n"
+        "   - Simple numeric answers ('quante ore ha dormito')\n"
+        "   - Yes/no questions ('ha dormito bene?')\n"
+        "   - Specific single values ('qual è l'efficienza del sonno')\n"
         "   - Only textual explanations explicitly requested\n\n"
         "DECISION LOGIC:\n"
-        "- If no workers have been called yet → route to appropriate worker(s)\n"
-        "- If some workers completed but others pending → route to pending workers\n"
-        "- If ALL required workers completed:\n"
+        "- If no workers called yet → route to appropriate data worker(s)\n"
+        "- If data workers pending → route to pending workers\n"
+        "- If ALL data workers completed AND visualization NOT called:\n"
         "  → If visualization would help → route to 'sleep_visualization'\n"
-        "  → If only text answer needed → route to 'FINISH'\n\n"
+        "  → If only text needed → route to 'FINISH'\n"
+        "- If visualization completed → route to 'FINISH'\n\n"
         "DEFAULT: When in doubt, prefer visualization (users usually benefit from graphs).\n\n"
         "Analyze the state and user intent to decide the next step."
     )
@@ -82,19 +88,25 @@ def make_supervisor_sleep(llm: BaseChatModel, members: list[str]):
         for resp in sleep_team_responses:
             completed_agents.add(resp["agent_name"])
 
-        # Controlla se la visualizzazione è già stata chiamata
-        visualization_called = any(
-            msg.content.startswith("VISUALIZATION")
-            for msg in state["messages"]
-            if hasattr(msg, 'name') and msg.name == "sleep_supervisor"
-        )
+        # Controlla se la visualizzazione è già stata chiamata/completata
+        visualization_called = False
+        visualization_completed = False
+
+        for msg in state["messages"]:
+            if hasattr(msg, 'name') and msg.name == "sleep_supervisor":
+                if "VISUALIZATION: Generating graphs" in msg.content:
+                    visualization_called = True
+            if hasattr(msg, 'name') and msg.name == "sleep_visualization":
+                visualization_completed = True
+                break
 
         print(f"\n{'=' * 60}")
         print("SLEEP SUPERVISOR STATUS:")
         print(f"Original question: {original_question}")
         print(f"Completed tasks: {completed_tasks}")
         print(f"Completed agents: {completed_agents}")
-        print(f"Visualization already called: {visualization_called}")
+        print(f"Visualization called: {visualization_called}")
+        print(f"Visualization completed: {visualization_completed}")
         print(f"{'=' * 60}\n")
 
         # Prepara il messaggio per l'LLM con context
@@ -104,11 +116,12 @@ def make_supervisor_sleep(llm: BaseChatModel, members: list[str]):
             f"- Completed agents: {list(completed_agents)}\n"
             f"- Available workers: {members}\n"
             f"- Data collected: {len(sleep_team_responses)} agent responses\n"
-            f"- Visualization already called: {visualization_called}\n\n"
-            f"TASK: Analyze the user's question and decide:\n"
-            f"1. Do we need to call more workers to collect data?\n"
-            f"2. Or should we generate visualizations?\n"
-            f"3. Or can we finish without visualizations?\n\n"
+            f"- Visualization called: {visualization_called}\n"
+            f"- Visualization completed: {visualization_completed}\n\n"
+            f"TASK: Analyze the current state and decide:\n"
+            f"1. Do we need to call more data workers?\n"
+            f"2. Should we generate visualizations?\n"
+            f"3. Are we ready to FINISH?\n\n"
             f"Remember: Prefer visualization unless the user explicitly wants only text/numbers."
         )
 
@@ -120,9 +133,13 @@ def make_supervisor_sleep(llm: BaseChatModel, members: list[str]):
         response = llm.with_structured_output(Router).invoke(messages)
         goto = response["next"]
 
-        # Safety check: se visualizzazione già chiamata, non richiamarla
-        if goto == "sleep_visualization" and visualization_called:
-            print("⚠️  Visualization already called, routing to FINISH")
+        # Safety checks
+        if goto == "sleep_visualization" and (visualization_called or visualization_completed):
+            print("⚠️  Visualization already called/completed, routing to FINISH")
+            goto = "FINISH"
+
+        if visualization_completed and goto != "FINISH":
+            print("⚠️  Visualization completed, forcing FINISH")
             goto = "FINISH"
 
         if goto == "FINISH":
@@ -135,7 +152,7 @@ def make_supervisor_sleep(llm: BaseChatModel, members: list[str]):
         if goto == "sleep_visualization":
             tracking_msg = "VISUALIZATION: Generating graphs"
         elif goto == END:
-            tracking_msg = "FINISH: Completing without visualization"
+            tracking_msg = "FINISH: Completing sleep team workflow"
         else:
             tracking_msg = f"ROUTING: Calling {goto}"
 
