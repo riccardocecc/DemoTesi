@@ -18,14 +18,12 @@ def create_kitchen_visualization_node(llm):
     """
     Crea un nodo di visualizzazione semplice con un agente ReAct.
     """
-
-    # Tool disponibili
     tools = [
         generate_kitchen_timeslot_chart,
         generate_kitchen_metrics_dashboard
     ]
 
-    # System prompt conciso
+
     system_prompt = (
         "You generate Plotly graphs for kitchen usage analysis.\n\n"
         "AVAILABLE TOOLS:\n"
@@ -38,7 +36,7 @@ def create_kitchen_visualization_node(llm):
         "- Generate graphs that answer the user's question\n"
     )
 
-    # Crea agente ReAct
+
     agent = create_react_agent(llm, tools=tools, prompt=system_prompt)
 
     def kitchen_visualization_node(state: State) -> Command[Literal["kitchen_team_supervisor"]]:
@@ -52,7 +50,7 @@ def create_kitchen_visualization_node(llm):
         original_question = state.get("original_question", "")
         team_responses = state.get("structured_responses", [])
 
-        # Estrai dati del team Kitchen
+
         kitchen_data = None
 
         for team_resp in team_responses:
@@ -64,7 +62,7 @@ def create_kitchen_visualization_node(llm):
                 break
 
         if not kitchen_data:
-            print("⚠️  No data available, skipping visualization")
+            print("⚠No data available, skipping visualization")
             return Command(
                 goto="kitchen_team_supervisor",
                 update={
@@ -75,19 +73,18 @@ def create_kitchen_visualization_node(llm):
                 }
             )
 
-        # Costruisci prompt MINIMO per l'agente
+
         data_dict = {"kitchen_data": kitchen_data}
 
-        # Prompt semplice: solo query + dati
+
         prompt = f"""Query: "{original_question}"
 
 Data: {json.dumps(data_dict, default=str)}"""
 
-        # Invoca agente
+
         try:
             result = agent.invoke({"messages": [HumanMessage(content=prompt)]})
 
-            # Estrai grafici dai ToolMessage
             graphs: list[GraphData] = []
 
             for msg in result["messages"]:
@@ -104,9 +101,9 @@ Data: {json.dumps(data_dict, default=str)}"""
                         graphs.append(content)
                         print(f"✓ Generated: {content['id']}")
 
-            print(f"\n✅ Generated {len(graphs)} graphs\n")
+            print(f"\nGenerated {len(graphs)} graphs\n")
 
-            # Update state
+
             existing_graphs = state.get("graphs", [])
 
             return Command(
@@ -121,7 +118,7 @@ Data: {json.dumps(data_dict, default=str)}"""
             )
 
         except Exception as e:
-            print(f"✗ Visualization failed: {e}")
+            print(f"Visualization failed: {e}")
             return Command(
                 goto="kitchen_team_supervisor",
                 update={

@@ -17,7 +17,7 @@ llm_supervisor  = ChatGoogleGenerativeAI(
     top_k=20,  # maggiori opzioni (da vedere meglio)
     max_output_tokens=2096,  #lunghezza risposta (forse anche meno)
     timeout=60.0,
-    max_retries=2
+    max_retries=0
 )
 
 llm_agents = ChatGoogleGenerativeAI(
@@ -28,7 +28,7 @@ llm_agents = ChatGoogleGenerativeAI(
     top_k=1,
     max_output_tokens=2048,
     timeout=60.0,
-    max_retries=2
+    max_retries=0
 )
 
 llm_query = ChatGoogleGenerativeAI(
@@ -39,7 +39,7 @@ llm_query = ChatGoogleGenerativeAI(
     top_k=1,  #solo il migliore
     max_output_tokens=1024,  #per json dovrebbe bastare
     timeout=30.0,
-    max_retries=2
+    max_retries=0
 )
 
 llm_visualization = ChatGoogleGenerativeAI(
@@ -50,7 +50,7 @@ llm_visualization = ChatGoogleGenerativeAI(
     top_k=10,
     max_output_tokens=1024,
     timeout=30.0,
-    max_retries=2
+    max_retries=0
 )
 
 
