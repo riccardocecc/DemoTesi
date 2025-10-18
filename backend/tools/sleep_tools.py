@@ -8,7 +8,6 @@ import pandas as pd
 from backend.config.settings import SLEEP_DATA_PATH
 from backend.models.results import SleepAnalysisResult, ErrorResult, SleepTrendData, DailyHeartRateResult
 
-
 @tool
 def analyze_sleep_changes(
     subject_id: Annotated[int, "ID of the subject to analyze, integer"],

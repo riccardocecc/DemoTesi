@@ -62,7 +62,7 @@ def create_kitchen_visualization_node(llm):
                 break
 
         if not kitchen_data:
-            print("⚠No data available, skipping visualization")
+            print("No data available, skipping visualization")
             return Command(
                 goto="kitchen_team_supervisor",
                 update={

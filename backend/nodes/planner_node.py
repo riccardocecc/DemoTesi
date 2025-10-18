@@ -27,6 +27,14 @@ class ExecutionPlan(BaseModel):
         description="Periodo da analizzare: 'last_N_days' o 'YYYY-MM-DD,YYYY-MM-DD'",
         default="last_30_days"
     )
+    cross_domain: bool = Field(
+        default=False,
+        description=(
+            "True se la query richiede correlazioni/relazioni tra domini diversi. "
+            "Quando True, i team di dominio (sleep/kitchen/mobility) non generano i grafici, "
+            "e il visualizzation node genera i grafici di correlazione."
+        )
+    )
     tasks: list[TeamTask] = Field(
         description="Lista ordinata di task da eseguire, uno per ogni team coinvolto"
     )
@@ -60,7 +68,25 @@ Analizza la domanda dell'utente e crea un piano di esecuzione che specifichi:
    - "YYYY-MM-DD,YYYY-MM-DD" per un range specifico
    - Default: "last_30_days" se non specificato
 
-3. **tasks**: Lista di task da eseguire. Per ogni task specifica:
+3. **cross_domain**: Booleano che indica se la query richiede correlazioni tra domini
+   - Imposta a **True**: Query richiede correlazioni/relazioni tra domini
+     → I team di dominio (sleep/kitchen/mobility) raccolgono SOLO dati (NO grafici)
+     → Il correlation_graph_node genera grafici di correlazione
+   - Imposta    **False**: Query richiede analisi standard
+     → I team di dominio generano i loro grafici normalmente
+     → NON creare task per correlation_graph_node
+     
+     **IDENTIFICAZIONE KEYWORD PER CORRELAZIONI:**
+        Questi termini indicano richieste di correlazione:
+        - "correlazione", "correlato", "correlati"
+        - "relazione", "relazionato", "collegato"
+        - "confronta", "paragona", "vs", "rispetto a"
+        - "influenza", "influenzato", "dipende"
+        - "insieme", "in relazione a"
+        - "impatto di X su Y", "effetto di X su Y"
+
+
+4. **tasks**: Lista di task da eseguire. Per ogni task specifica:
    - **team**: quale team deve eseguirlo
      * "sleep_team": per tutto ciò che riguarda il sonno (qualità, durata, risvegli, frequenza cardiaca durante il sonno, respirazione notturna, fasi del sonno, etc.)
      * "kitchen_team": per tutto ciò che riguarda la cucina e i pasti (attività in cucina, cottura, preparazione pasti, utilizzo elettrodomestici, orari dei pasti, etc.)
@@ -159,16 +185,17 @@ Piano:
         print(f"EXECUTION PLAN:")
         print(f"  Subject ID: {plan.subject_id}")
         print(f"  Period: {plan.period}")
+        print(f"  Cross-Domain: {'YES' if plan.cross_domain else 'NO'}")
         print(f"  Tasks ({len(plan.tasks)}):")
         for i, task in enumerate(plan.tasks, 1):
             print(f"    {i}. [{task.team}]")
             print(f"       {task.instruction}")
         print(f"{'=' * 60}\n")
 
-
         plan_summary = (
             f"EXECUTION PLAN:\n"
-            f"Subject: {plan.subject_id}, Period: {plan.period}\n\n"
+            f"Subject: {plan.subject_id}, Period: {plan.period}\n"
+            f"Cross-Domain: {plan.cross_domain}\n\n"
             f"Tasks to execute:\n"
         )
         for i, task in enumerate(plan.tasks, 1):

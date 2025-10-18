@@ -15,7 +15,8 @@ from backend.tools.visualization_sleep_tools import (
     generate_sleep_phases_chart,
     generate_sleep_efficiency_gauge,
     generate_sleep_disturbances_chart,
-    generate_heart_rate_timeline
+    generate_heart_rate_timeline,
+
 )
 
 
@@ -95,13 +96,9 @@ def create_sleep_visualization_node(llm):
         # Prompt semplice: solo query + dati
         prompt = f"""Query: "{original_question}"
 
-Data: {json.dumps(data_dict, default=str)}"""
-
-        # Invoca agente
+    Data: {json.dumps(data_dict, default=str)}"""
         try:
             result = agent.invoke({"messages": [HumanMessage(content=prompt)]})
-
-            # Estrai grafici dai ToolMessage
             graphs: list[GraphData] = []
 
             for msg in result["messages"]:
@@ -118,7 +115,7 @@ Data: {json.dumps(data_dict, default=str)}"""
                         graphs.append(content)
                         print(f"✓ Generated: {content['id']}")
 
-            print(f"\n✅ Generated {len(graphs)} graphs\n")
+            print(f"\nGenerated {len(graphs)} graphs\n")
 
             # Update state
             existing_graphs = state.get("graphs", [])

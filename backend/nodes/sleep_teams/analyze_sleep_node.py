@@ -8,11 +8,12 @@ from backend.models.state import State, AgentResponse, TeamResponse
 from langgraph.types import Command
 from langchain_core.messages import HumanMessage, ToolMessage
 
-from backend.tools.sleep_tools import analyze_sleep_changes
-
+from backend.tools.sleep_tools import  (
+    analyze_sleep_changes,
+)
 
 def create_analyze_sleep_agent(llm):
-    tools = [analyze_sleep_changes]
+    tools = [ analyze_sleep_changes]
     system_message = (
         "You are a specialized agent for analyzing sleep patterns and quality. "
         "You MUST use the analyze_sleep_changes tool to retrieve sleep data. "

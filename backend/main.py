@@ -5,6 +5,9 @@ import json
 graph = build_graph()
 
 
+
+
+
 def run_demo(question: str, max_iterations: int = 10):
     """
     Esegue la demo e restituisce lo state finale completo.
@@ -20,7 +23,7 @@ def run_demo(question: str, max_iterations: int = 10):
 if __name__ == "__main__":
     start_time = time.time()
     final_state = run_demo(
-        "Analizzai in quali stanze passa più tempo il soggetto 2 nell'ultima settimana e la fase rem ?")
+        "Come varia il sonno e la presenza in cucina nel tempo per il soggetto 2?")
     end_time = time.time()
 
     # Stampa tutti i messaggi

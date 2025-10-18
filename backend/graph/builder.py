@@ -1,7 +1,8 @@
 from langgraph.graph import StateGraph, START
 
-from backend.config.settings import llm_agents, llm_supervisor, llm_query
+from backend.config.settings import llm_agents, llm_supervisor, llm_query, llm_visualization
 from backend.models.state import State
+from backend.nodes.correlation_graph_node import create_correlation_graph_node
 from backend.nodes.kitchen_teams.kitchen_graph import build_kitchen_graph
 from backend.nodes.mobility_teams.mobility_graph import build_mobility_graph
 from backend.nodes.sleep_teams.sleep_graph import build_sleep_graph
@@ -34,12 +35,15 @@ def build_graph():
     )
     correlation_analyzer = create_correlation_analyzer_node(llm_supervisor)
 
-
+    correlation_graph_node = create_correlation_graph_node(llm_visualization)
     builder = StateGraph(State)
+
+
 
     # nodi di coordinamento
     builder.add_node("planner", planner)
     builder.add_node("supervisor", supervisor)
+    builder.add_node("correlation_graph_node", correlation_graph_node)
     builder.add_node("correlation_analyzer", correlation_analyzer)
 
 

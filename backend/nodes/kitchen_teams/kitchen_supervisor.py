@@ -72,6 +72,9 @@ def make_supervisor_kitchen(llm: BaseChatModel, members: list[str]):
         completed_tasks = state.get("completed_tasks", set())
         structured_responses = state.get("structured_responses", [])
         original_question = state.get("original_question", "")
+        execution_plan = state.get("execution_plan")
+
+        cross_domain = execution_plan.cross_domain if execution_plan else False
 
         # Trova le risposte del kitchen_team
         kitchen_team_responses = []
@@ -100,6 +103,7 @@ def make_supervisor_kitchen(llm: BaseChatModel, members: list[str]):
         print(f"\n{'=' * 60}")
         print("KITCHEN SUPERVISOR STATUS:")
         print(f"Original question: {original_question}")
+        print(f"Cross-Domain Mode: {cross_domain}")
         print(f"Completed tasks: {completed_tasks}")
         print(f"Completed agents: {completed_agents}")
         print(f"Visualization called: {visualization_called}")
@@ -110,6 +114,7 @@ def make_supervisor_kitchen(llm: BaseChatModel, members: list[str]):
         context_message = (
             f"CURRENT STATE:\n"
             f"- Original user question: '{original_question}'\n"
+            f"- Cross-domain mode: {cross_domain} {'(SKIP VISUALIZATION!)' if cross_domain else ''}\n"
             f"- Completed agents: {list(completed_agents)}\n"
             f"- Available workers: {members}\n"
             f"- Data collected: {len(kitchen_team_responses)} agent responses\n"
@@ -117,10 +122,13 @@ def make_supervisor_kitchen(llm: BaseChatModel, members: list[str]):
             f"- Visualization completed: {visualization_completed}\n\n"
             f"TASK: Analyze the current state and decide:\n"
             f"1. Do we need to call the data worker (analyze_kitchen_node)?\n"
-            f"2. Should we generate visualizations?\n"
+            f"2. Should we generate visualizations? (Remember: skip if cross_domain = True)\n"
             f"3. Are we ready to FINISH?\n\n"
-            f"Remember: Prefer visualization unless the user explicitly wants only text/numbers."
         )
+        if cross_domain:
+            context_message += "⚠️ IMPORTANT: cross_domain = True, so skip visualization and go to FINISH after data collection!\n"
+        else:
+            context_message += "Remember: Prefer visualization unless the user explicitly wants only text/numbers.\n"
 
         messages = [
             {"role": "system", "content": system_prompt},
