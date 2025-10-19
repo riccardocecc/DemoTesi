@@ -84,6 +84,7 @@ Analizza la domanda dell'utente e crea un piano di esecuzione che specifichi:
         - "influenza", "influenzato", "dipende"
         - "insieme", "in relazione a"
         - "impatto di X su Y", "effetto di X su Y"
+        -"come ha dormito e come ha cucinato
 
 
 4. **tasks**: Lista di task da eseguire. Per ogni task specifica:
@@ -181,6 +182,9 @@ Piano:
             "format_instructions": parser.get_format_instructions()
         })
 
+        unique_teams = set(task.team for task in plan.tasks)
+        if len(unique_teams) > 1:
+            plan.cross_domain=True
 
         print(f"EXECUTION PLAN:")
         print(f"  Subject ID: {plan.subject_id}")

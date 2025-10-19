@@ -23,47 +23,10 @@ def run_demo(question: str, max_iterations: int = 10):
 if __name__ == "__main__":
     start_time = time.time()
     final_state = run_demo(
-        "Come varia il sonno e la presenza in cucina nel tempo per il soggetto 2?")
+        "Come ha dormito il soggetto e come ha cucinato 2 nell'ultima settimana?")
     end_time = time.time()
 
-    # Stampa tutti i messaggi
-    print(f"\n{'=' * 60}")
-    print("MESSAGGI DELLO STATE")
-    print(f"{'=' * 60}\n")
 
-    messages = final_state.get("messages", [])
-
-    for i, msg in enumerate(messages, 1):
-        print(f"\n--- Messaggio {i} ---")
-        print(f"Tipo: {type(msg).__name__}")
-
-        # Gestisci diversi tipi di messaggi
-        if hasattr(msg, 'type'):
-            print(f"Role: {msg.type}")
-
-        if hasattr(msg, 'content'):
-            print(f"Content: {msg.content}")
-
-        if hasattr(msg, 'name'):
-            print(f"Name: {msg.name}")
-
-        if hasattr(msg, 'tool_calls'):
-            print(f"Tool calls: {msg.tool_calls}")
-
-        if hasattr(msg, 'additional_kwargs'):
-            print(f"Additional kwargs: {msg.additional_kwargs}")
-
-        # Stampa la rappresentazione completa del messaggio
-        print(f"\nOggetto completo:")
-        print(json.dumps(msg.dict() if hasattr(msg, 'dict') else str(msg),
-                         indent=2, ensure_ascii=False, default=str))
-
-    # Stampa anche i graphs
-    graphs = final_state.get("graphs")
-    print(f"\n{'=' * 60}")
-    print("GRAPHS")
-    print(f"{'=' * 60}\n")
-    print(json.dumps(graphs, indent=2, ensure_ascii=False, default=str))
 
     # Stampa altri campi dello state
     print(f"\n{'=' * 60}")

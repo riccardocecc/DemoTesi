@@ -2,19 +2,37 @@ from __future__ import annotations
 
 from langgraph.graph import MessagesState
 from typing_extensions import TypedDict, Literal
-from typing import Any, Optional
-from backend.models.results import SleepAnalysisResult, KitchenAnalysisResult,MobilityAnalysisResult,ErrorResult
+from typing import Any, Optional, Dict
+from backend.models.results import (
+    SleepStatisticsResult,
+    SleepDistributionResult,
+    SleepQualityCorrelationResult,
+    DailyHeartRateResult,
+    KitchenAnalysisResult,
+    MobilityAnalysisResult,
+    ErrorResult
+)
 
 
 class AgentResponse(TypedDict):
     """Risposta strutturata di un agente specializzato"""
     task: str
-    agent_name: Literal["sleep_agent", "kitchen_agent", "mobility_agent","heart_freq_agent"]
-    data: SleepAnalysisResult | KitchenAnalysisResult | MobilityAnalysisResult | ErrorResult
+    agent_name: Literal["sleep_agent", "kitchen_agent", "mobility_agent", "heart_freq_agent"]
+    data: (
+        SleepStatisticsResult |
+        SleepDistributionResult |
+        SleepQualityCorrelationResult |
+        DailyHeartRateResult |
+        KitchenAnalysisResult |
+        MobilityAnalysisResult |
+        ErrorResult
+    )
+
 
 class TeamResponse(TypedDict):
     structured_responses: list[AgentResponse]
     team_name: str
+
 
 class GraphData(TypedDict):
     """Rappresenta un singolo grafico generato"""
@@ -32,4 +50,3 @@ class State(MessagesState):
     execution_plan: Any
     completed_tasks: set[str]
     graphs: Optional[list[GraphData]]
-

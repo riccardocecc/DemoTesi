@@ -11,7 +11,15 @@ from langgraph.types import Command
 from langchain_core.messages import HumanMessage, ToolMessage
 
 from backend.models.state import State, GraphData
-from backend.tools.visualization_kitchen_tool import generate_kitchen_timeslot_chart, generate_kitchen_metrics_dashboard
+from backend.tools.visualization_kitchen_tool import (
+    generate_kitchen_statistics_dashboard,
+    generate_kitchen_variability_box,
+    generate_kitchen_timeslot_chart,
+    generate_kitchen_duration_by_timeslot,
+    generate_kitchen_temperature_distribution,
+    generate_kitchen_temperature_gauge,
+    generate_kitchen_temp_by_timeslot
+)
 
 
 def create_kitchen_visualization_node(llm):
@@ -19,23 +27,31 @@ def create_kitchen_visualization_node(llm):
     Crea un nodo di visualizzazione semplice con un agente ReAct.
     """
     tools = [
+        generate_kitchen_statistics_dashboard,
+        generate_kitchen_variability_box,
         generate_kitchen_timeslot_chart,
-        generate_kitchen_metrics_dashboard
+        generate_kitchen_duration_by_timeslot,
+        generate_kitchen_temperature_distribution,
+        generate_kitchen_temperature_gauge,
+        generate_kitchen_temp_by_timeslot
     ]
-
 
     system_prompt = (
         "You generate Plotly graphs for kitchen usage analysis.\n\n"
         "AVAILABLE TOOLS:\n"
+        "- generate_kitchen_statistics_dashboard: dashboard with statistics (mean±std)\n"
+        "- generate_kitchen_variability_box: box plots showing variability\n"
         "- generate_kitchen_timeslot_chart: bar chart of usage by time slot (breakfast/lunch/dinner)\n"
-        "- generate_kitchen_metrics_dashboard: dashboard with key metrics (frequency, duration, total time)\n\n"
+        "- generate_kitchen_duration_by_timeslot: bar chart of duration by time slot\n"
+        "- generate_kitchen_temperature_distribution: bar chart of low/medium/high temp activities\n"
+        "- generate_kitchen_temperature_gauge: gauge showing average temperature\n"
+        "- generate_kitchen_temp_by_timeslot: bar chart of temperature by time slot\n\n"
         "RULES:\n"
-        "- If query mentions specific aspects (meal times, frequency, etc), generate ONLY those graphs\n"
-        "- If query is generic ('kitchen usage?'), generate both graphs\n"
+        "- If query mentions specific aspects (meal times, frequency, temperature, etc), generate ONLY those graphs\n"
+        "- If query is generic ('kitchen usage?'), use generate_kitchen_statistics_dashboard\n"
         "- Use kitchen_data for all tools\n"
         "- Generate graphs that answer the user's question\n"
     )
-
 
     agent = create_react_agent(llm, tools=tools, prompt=system_prompt)
 
@@ -50,7 +66,6 @@ def create_kitchen_visualization_node(llm):
         original_question = state.get("original_question", "")
         team_responses = state.get("structured_responses", [])
 
-
         kitchen_data = None
 
         for team_resp in team_responses:
@@ -62,7 +77,7 @@ def create_kitchen_visualization_node(llm):
                 break
 
         if not kitchen_data:
-            print("No data available, skipping visualization")
+            print("⚠️  No data available, skipping visualization")
             return Command(
                 goto="kitchen_team_supervisor",
                 update={
@@ -73,14 +88,11 @@ def create_kitchen_visualization_node(llm):
                 }
             )
 
-
         data_dict = {"kitchen_data": kitchen_data}
-
 
         prompt = f"""Query: "{original_question}"
 
 Data: {json.dumps(data_dict, default=str)}"""
-
 
         try:
             result = agent.invoke({"messages": [HumanMessage(content=prompt)]})
@@ -101,8 +113,7 @@ Data: {json.dumps(data_dict, default=str)}"""
                         graphs.append(content)
                         print(f"✓ Generated: {content['id']}")
 
-            print(f"\nGenerated {len(graphs)} graphs\n")
-
+            print(f"\n✅ Generated {len(graphs)} graphs total\n")
 
             existing_graphs = state.get("graphs", [])
 
@@ -118,7 +129,7 @@ Data: {json.dumps(data_dict, default=str)}"""
             )
 
         except Exception as e:
-            print(f"Visualization failed: {e}")
+            print(f"❌ Visualization failed: {e}")
             return Command(
                 goto="kitchen_team_supervisor",
                 update={
