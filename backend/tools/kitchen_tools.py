@@ -136,6 +136,7 @@ def analyze_kitchen_usage_pattern(
     Usa questo tool quando l'utente chiede:
     - "Quando usa di più la cucina?"
     - "Pattern utilizzo cucina"
+    -"fascia oraria di cucina/in quali fascie orarie cucina di più"
     - "Distribuzione attività per pasto"
     - "Orari preferiti per cucinare"
     - "Analisi fasce orarie cucina"

@@ -31,17 +31,6 @@ def create_analyze_kitchen_agent(llm):
         "Only call additional tools if the user explicitly asks for:\n"
         "- 'when' or 'time slots' or 'meal times' or 'pattern' → add analyze_kitchen_usage_pattern\n"
         "- 'temperature' or 'cooking intensity' or 'how hot' → add analyze_kitchen_temperature\n\n"
-        "EXAMPLES:\n"
-        "Query: 'How does subject 2 use the kitchen in the last week?'\n"
-        "→ Call ONLY analyze_kitchen_statistics with subject_id=2, period='last_7_days'\n\n"
-        "Query: 'Analyze kitchen usage for subject 1'\n"
-        "→ Call ONLY analyze_kitchen_statistics with subject_id=1\n\n"
-        "Query: 'When does subject 3 cook most?'\n"
-        "→ Call analyze_kitchen_usage_pattern with subject_id=3\n\n"
-        "Query: 'What temperatures does subject 2 reach when cooking?'\n"
-        "→ Call analyze_kitchen_temperature with subject_id=2\n\n"
-        "Query: 'Complete kitchen analysis for subject 1 last month'\n"
-        "→ Call ALL THREE tools with subject_id=1, period='last_30_days'\n\n"
         "Always extract subject_id and period from the user's request.\n"
     )
 

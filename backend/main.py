@@ -23,7 +23,7 @@ def run_demo(question: str, max_iterations: int = 10):
 if __name__ == "__main__":
     start_time = time.time()
     final_state = run_demo(
-        "Come ha dormito il soggetto e come ha cucinato 2 nell'ultima settimana?")
+        "Fasi del sonno del  soggetto 2 e come ha cucinato nell'ultima settimana?")
     end_time = time.time()
 
 

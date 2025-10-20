@@ -48,7 +48,7 @@ llm_visualization = ChatGoogleGenerativeAI(
     temperature=0,  # Leggermente creativo per intent detection
     top_p=0,
     top_k=10,
-    max_output_tokens=1024,
+    max_output_tokens=50000,
     timeout=30.0,
     max_retries=0
 )
