@@ -1,7 +1,9 @@
+import time
+from time import sleep
 from typing import Literal
 from langgraph.types import Command
-from langchain_core.messages import HumanMessage
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 
@@ -154,7 +156,7 @@ Piano:
   ]
 
 {format_instructions}"""),
-        ("user", "{question}")
+        MessagesPlaceholder(variable_name="messages"),  # ✅ Usa MessagesPlaceholder
     ])
 
     # Chain: prompt -> LLM -> parser
@@ -169,17 +171,12 @@ Piano:
         Assegna i task ai team appropriati in base al dominio della query.
         """
         # Prendi la domanda originale
-        original_question = state["messages"][0].content if state["messages"] else ""
-
-        print(f"\n{'=' * 60}")
-        print(f"PLANNER - Creating execution plan for:")
-        print(f"{original_question}")
         print(f"{'=' * 60}\n")
 
         # Esegui la planning chain
         plan: ExecutionPlan = planning_chain.invoke({
-            "question": original_question,
-            "format_instructions": parser.get_format_instructions()
+            "messages":state["messages"],
+            "format_instructions": parser.get_format_instructions(),
         })
 
         unique_teams = set(task.team for task in plan.tasks)
@@ -208,8 +205,7 @@ Piano:
         return Command(
             goto="supervisor",
             update={
-                "messages": [HumanMessage(content=plan_summary)],
-                "original_question": original_question,
+                "messages": [AIMessage(content=plan_summary)],
                 "execution_plan": plan,
                 "completed_tasks": set()
             }

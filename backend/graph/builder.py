@@ -1,7 +1,9 @@
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import StateGraph, START
 
 from backend.config.settings import llm_agents, llm_supervisor, llm_query, llm_visualization
 from backend.models.state import State
+from backend.nodes.conversational_router import create_conversational_router
 from backend.nodes.correlation_graph_node import create_correlation_graph_node
 from backend.nodes.kitchen_teams.kitchen_graph import build_kitchen_graph
 from backend.nodes.mobility_teams.mobility_graph import build_mobility_graph
@@ -9,7 +11,7 @@ from backend.nodes.sleep_teams.sleep_graph import build_sleep_graph
 from backend.nodes.supervisor import make_supervisor_node
 from backend.nodes.planner_node import create_planner_node
 from backend.nodes.correlation_analyzer_node import create_correlation_analyzer_node
-
+from backend.utils.grap_utilis import Assistant
 
 
 def build_graph():
@@ -38,6 +40,7 @@ def build_graph():
     correlation_graph_node = create_correlation_graph_node(llm_visualization)
     builder = StateGraph(State)
 
+    conversational_router = create_conversational_router(llm_supervisor)
 
 
     # nodi di coordinamento
@@ -45,7 +48,7 @@ def build_graph():
     builder.add_node("supervisor", supervisor)
     builder.add_node("correlation_graph_node", correlation_graph_node)
     builder.add_node("correlation_analyzer", correlation_analyzer)
-
+    builder.add_node("conversational_router",conversational_router)
 
     # subgraphs come nodi
     builder.add_node("sleep_team", sleep_team_graph)
@@ -57,7 +60,7 @@ def build_graph():
     builder.add_edge("kitchen_team", "supervisor")
     builder.add_edge("mobility_team", "supervisor")
 
-    # estrae domini da query e assegna teams. Non va nel dettaglio
-    builder.add_edge(START, "planner")
+    builder.add_edge(START, "conversational_router")
 
-    return builder.compile()
+    memory = InMemorySaver()
+    return builder.compile(checkpointer=memory)

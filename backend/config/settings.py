@@ -32,7 +32,7 @@ llm_agents = ChatGoogleGenerativeAI(
 )
 
 llm_query = ChatGoogleGenerativeAI(
-    model="gemini-2.0-flash-exp",
+    model="gemini-2.5-flash",
     google_api_key=google_api_key,
     temperature=0,  #deterministico
     top_p=0.1,  #token più probabili

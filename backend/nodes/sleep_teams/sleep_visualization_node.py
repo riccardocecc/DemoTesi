@@ -55,6 +55,8 @@ def create_sleep_visualization_node(llm):
         "- generate_sleep_correlation_heatmap: correlations heatmap (needs quality_correlation data)\n"
         "- generate_sleep_variability_box: box plots showing variability (needs statistics data)\n"
         "- generate_heart_rate_timeline: line chart heart rate over time (needs heart_data)\n\n"
+        "RULES\n"
+        "for generic query about sleep use ONLY generate_sleep_statistics_dashboard"
     )
 
     # Crea agente ReAct

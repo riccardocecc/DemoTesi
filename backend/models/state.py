@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from langgraph.graph import MessagesState
+from langchain_core.messages import AnyMessage
+from langgraph.graph import MessagesState, add_messages
 from typing_extensions import TypedDict, Literal
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, Annotated
 from backend.models.results import (
     SleepStatisticsResult,
     SleepDistributionResult,
@@ -42,10 +43,12 @@ class GraphData(TypedDict):
     plotly_json: dict[str, Any]
 
 
+
 class State(MessagesState):
     """State globale del grafo con risposte strutturate"""
+    messages = Annotated[list[AnyMessage], add_messages]
     next: str
-    original_question: str
+    original_question: Optional[str]
     structured_responses: list[TeamResponse]
     execution_plan: Any
     completed_tasks: set[str]

@@ -1,15 +1,24 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
+from uuid import uuid4
 from backend.graph.builder import build_graph
 
 app = FastAPI()
 serenade_graph = build_graph()
 
 
+class ChatMessage(BaseModel):
+    """Singolo messaggio nella conversazione"""
+    role: str
+    content: str
+
+
 class QueryRequest(BaseModel):
-    question: str
-    max_iterations: int = 10
+    """Richiesta per il chatbot"""
+    message: str
+    thread_id: Optional[str] = None
+    max_iterations: int = 15
 
 
 class GraphResponse(BaseModel):
@@ -21,79 +30,173 @@ class GraphResponse(BaseModel):
 
 
 class QueryResponse(BaseModel):
-    question: str
-    answer: str
+    """Risposta del chatbot"""
+    thread_id: str
+    message: str
     structured_responses: List[Dict[str, Any]]
     graphs: Optional[List[GraphResponse]] = None
 
 
-def run_demo(question: str, max_iterations: int = 10):
+def run_chat(message: str, thread_id: str, max_iterations: int = 15):
     """
-    Esegue la demo del sistema e restituisce risposta, structured_responses e graphs.
+    Esegue il chatbot con gestione dello stato conversazionale.
     """
-    final_response = None
+    assistant_message = None
     structured_responses = []
     graphs = None
 
-    for s in serenade_graph.stream(
-            {"messages": [("user", question)]},
-            {"recursion_limit": max_iterations},
+    # Configura con thread_id per mantenere la conversazione
+    config = {
+        "configurable": {"thread_id": thread_id},
+        "recursion_limit": max_iterations
+    }
+
+    # Stream degli aggiornamenti
+    for event in serenade_graph.stream(
+            {"messages": [("user", message)]},
+            config,
+            stream_mode="updates"
     ):
-        for node_name, node_output in s.items():
+        # Ogni event è un dict: {node_name: node_output}
+        for node_name, node_output in event.items():
+            print(f"📍 Node: {node_name}")
+
             if node_output is None:
                 continue
 
-            # Cattura structured_responses dallo state
+            # Cattura messaggi AI aggiunti
+            if "messages" in node_output:
+                for msg in node_output["messages"]:
+                    if hasattr(msg, 'type') and msg.type == "ai":
+                        assistant_message = msg.content
+                        print(f"💬 Captured AI message: {assistant_message[:100]}...")
+
+            # Cattura structured_responses
             if "structured_responses" in node_output:
                 team_responses = node_output["structured_responses"]
-                # Estrai tutti gli AgentResponse da tutti i TeamResponse
+                print("Team response ", team_responses)
                 all_agent_responses = []
                 for team_resp in team_responses:
-                    all_agent_responses.extend(team_resp["structured_responses"])
+                    if isinstance(team_resp, dict) and "structured_responses" in team_resp:
+                        all_agent_responses.extend(team_resp["structured_responses"])
                 structured_responses = all_agent_responses
 
-            # Cattura la risposta finale dal correlation_analyzer
-            if node_name == "correlation_analyzer" and "messages" in node_output:
-                for msg in node_output["messages"]:
-                    if hasattr(msg, 'name') and msg.name == "correlation_analyzer":
-                        final_response = msg.content
-                        break
 
-            # Cattura i grafici dallo state (vengono generati nei subgraphs)
+            # Cattura i grafici
             if "graphs" in node_output:
                 graphs = node_output["graphs"]
+                print(f"📈 Captured {len(graphs) if graphs else 0} graphs")
 
-    return final_response, structured_responses, graphs
+    if assistant_message is None:
+        final_state = serenade_graph.get_state(config)
+
+        if final_state and final_state.values and "messages" in final_state.values:
+            # Trova l'ultimo messaggio AI
+            for msg in reversed(final_state.values["messages"]):
+                if hasattr(msg, 'type') and msg.type == "ai":
+                    assistant_message = msg.content
+                    print(f"✅ Found AI message in state: {assistant_message[:100]}...")
+                    break
+
+        # Cattura graphs dallo state finale se non catturati prima
+        if graphs is None and final_state and final_state.values and "graphs" in final_state.values:
+            graphs = final_state.values["graphs"]
+            print(f"✅ Found {len(graphs) if graphs else 0} graphs in state")
+
+        # Se ancora non abbiamo risposta
+        if assistant_message is None:
+            assistant_message = "I'm sorry, I couldn't generate a response."
+            print("❌ No response found, using default message")
+
+    return assistant_message, structured_responses, graphs
 
 
-@app.post("/query", response_model=QueryResponse)
-async def query_endpoint(request: QueryRequest):
+@app.post("/chat", response_model=QueryResponse)
+async def chat_endpoint(request: QueryRequest):
     """
-    Endpoint che riceve una domanda e restituisce risposta, dati strutturati e grafici.
+    Endpoint per il chatbot conversazionale.
     """
     try:
-        answer, structured_responses, graphs = run_demo(
-            request.question,
+        # Genera un nuovo thread_id se non fornito
+        thread_id = request.thread_id or str(uuid4())
+
+        print(f"\n{'=' * 60}")
+        print(f"💬 CHAT REQUEST")
+        print(f"{'=' * 60}")
+        print(f"Thread ID: {thread_id}")
+        print(f"User Message: {request.message}")
+        print(f"{'=' * 60}\n")
+
+        # Esegui il chatbot
+        assistant_message, structured_responses, graphs = run_chat(
+            request.message,
+            thread_id,
             request.max_iterations
         )
 
-        if answer is None:
-            raise HTTPException(
-                status_code=500,
-                detail="Nessuna risposta finale generata"
-            )
+        print(f"\n✅ Response ready:")
+        print(f"   Message: {assistant_message[:100]}...")
+        print(f"   Structured responses: {len(structured_responses)}")
+        print(f"   Graphs: {len(graphs) if graphs else 0}")
+        print(f"{'=' * 60}\n")
 
         return QueryResponse(
-            question=request.question,
-            answer=answer,
+            thread_id=thread_id,
+            message=assistant_message,
             structured_responses=structured_responses,
-            graphs=graphs or []  # Restituisci lista vuota se None
+            graphs=graphs or []
         )
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Errore durante l'elaborazione: {str(e)}"
+        )
+
+
+@app.post("/chat/new")
+async def new_conversation():
+    """
+    Crea una nuova conversazione e restituisce il thread_id.
+    """
+    thread_id = str(uuid4())
+    return {
+        "thread_id": thread_id,
+        "message": "Nuova conversazione creata"
+    }
+
+
+@app.get("/chat/{thread_id}/history")
+async def get_conversation_history(thread_id: str):
+    """
+    Recupera la cronologia di una conversazione.
+    """
+    try:
+        config = {"configurable": {"thread_id": thread_id}}
+        state = serenade_graph.get_state(config)
+
+        if state is None or not state.values or "messages" not in state.values:
+            return {"messages": [], "thread_id": thread_id}
+
+        # Converti i messaggi in un formato serializzabile
+        messages = []
+        for msg in state.values["messages"]:
+            messages.append({
+                "role": "user" if msg.type == "human" else "assistant",
+                "content": msg.content
+            })
+
+        return {
+            "thread_id": thread_id,
+            "messages": messages
+        }
 
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Errore durante l'elaborazione: {str(e)}"
+            detail=f"Errore nel recupero della cronologia: {str(e)}"
         )
 
 

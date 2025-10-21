@@ -1,3 +1,4 @@
+import time
 from typing import Literal, TypedDict
 from langchain_core.language_models.chat_models import BaseChatModel
 
@@ -82,7 +83,7 @@ def make_supervisor_sleep(llm: BaseChatModel, members: list[str]):
         LLM-based router che coordina worker e decide se generare visualizzazioni.
         Legge il flag cross_domain per determinare se skippare la visualizzazione.
         """
-
+        print("sleep supervisor")
         # Controlla quali task sono stati completati
         completed_tasks = state.get("completed_tasks", set())
         structured_responses = state.get("structured_responses", [])

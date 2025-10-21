@@ -616,21 +616,21 @@ def create_correlation_graph_node(llm):
         5. **⚠️ UNITÀ COMPATIBILI - REGOLA CRITICA**:
            Per query su "correlazione" o "relazione", le metriche DEVONO avere unità simili.
 
-           ✅ COMBINAZIONI VALIDE:
+           COMBINAZIONI VALIDE:
            - Tutte percentuali: sleep_efficiency (%), rem_sleep.percentage (%), room_percentages.cucina (%)
            - Tutte durate: total_sleep_minutes (min), avg_duration_minutes (min)
            - Tutte frequenze: activities_per_day (count), detections_per_day (count)
            - Tutte ore: total_cooking_time_hours (h), total_active_time_hours (h)
 
-           ❌ COMBINAZIONI INVALIDE (NON FARE MAI):
-           - Mescolare % con conteggi: sleep_efficiency (%) + detections_per_day (count) ❌
-           - Mescolare minuti con conteggi: avg_duration_minutes (min) + activities_per_day (count) ❌
-           - Mescolare ore con %: total_active_time_hours (h) + sleep_efficiency (%) ❌
+           COMBINAZIONI INVALIDE (NON FARE MAI):
+           - Mescolare % con conteggi: sleep_efficiency (%) + detections_per_day (count) 
+           - Mescolare minuti con conteggi: avg_duration_minutes (min) + activities_per_day (count) 
+           - Mescolare ore con %: total_active_time_hours (h) + sleep_efficiency (%) 
 
            Se non ci sono abbastanza metriche con unità compatibili, scegli UNA categoria principale
            e prendi tutte le metriche di quella categoria (es: solo percentuali, solo durate).
 
-        📌 ESEMPIO per "{original_question}":
+         ESEMPIO per "{original_question}":
            Query: "correlazione efficienza sonno e mobilità"
 
            Opzione A (solo percentuali):
@@ -647,7 +647,7 @@ def create_correlation_graph_node(llm):
            Opzione C (solo frequenze/conteggi):
            - detections_per_day (count)
 
-           ❌ NON FARE:
+            NON FARE:
            - sleep_efficiency (%) + detections_per_day (count) → unità incompatibili!
 
         Genera un piano con metriche OMOGENEE per unità di misura."""
