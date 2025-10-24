@@ -59,7 +59,7 @@ def run_chat(message: str, thread_id: str, max_iterations: int = 15):
     ):
         # Ogni event è un dict: {node_name: node_output}
         for node_name, node_output in event.items():
-            print(f"📍 Node: {node_name}")
+
 
             if node_output is None:
                 continue
@@ -69,7 +69,6 @@ def run_chat(message: str, thread_id: str, max_iterations: int = 15):
                 for msg in node_output["messages"]:
                     if hasattr(msg, 'type') and msg.type == "ai":
                         assistant_message = msg.content
-                        print(f"💬 Captured AI message: {assistant_message[:100]}...")
 
             # Cattura structured_responses
             if "structured_responses" in node_output:
@@ -85,7 +84,6 @@ def run_chat(message: str, thread_id: str, max_iterations: int = 15):
             # Cattura i grafici
             if "graphs" in node_output:
                 graphs = node_output["graphs"]
-                print(f"📈 Captured {len(graphs) if graphs else 0} graphs")
 
     if assistant_message is None:
         final_state = serenade_graph.get_state(config)
@@ -95,18 +93,15 @@ def run_chat(message: str, thread_id: str, max_iterations: int = 15):
             for msg in reversed(final_state.values["messages"]):
                 if hasattr(msg, 'type') and msg.type == "ai":
                     assistant_message = msg.content
-                    print(f"✅ Found AI message in state: {assistant_message[:100]}...")
                     break
 
         # Cattura graphs dallo state finale se non catturati prima
         if graphs is None and final_state and final_state.values and "graphs" in final_state.values:
             graphs = final_state.values["graphs"]
-            print(f"✅ Found {len(graphs) if graphs else 0} graphs in state")
 
         # Se ancora non abbiamo risposta
         if assistant_message is None:
             assistant_message = "I'm sorry, I couldn't generate a response."
-            print("❌ No response found, using default message")
 
     return assistant_message, structured_responses, graphs
 
@@ -120,12 +115,6 @@ async def chat_endpoint(request: QueryRequest):
         # Genera un nuovo thread_id se non fornito
         thread_id = request.thread_id or str(uuid4())
 
-        print(f"\n{'=' * 60}")
-        print(f"💬 CHAT REQUEST")
-        print(f"{'=' * 60}")
-        print(f"Thread ID: {thread_id}")
-        print(f"User Message: {request.message}")
-        print(f"{'=' * 60}\n")
 
         # Esegui il chatbot
         assistant_message, structured_responses, graphs = run_chat(
@@ -134,11 +123,7 @@ async def chat_endpoint(request: QueryRequest):
             request.max_iterations
         )
 
-        print(f"\n✅ Response ready:")
-        print(f"   Message: {assistant_message[:100]}...")
-        print(f"   Structured responses: {len(structured_responses)}")
-        print(f"   Graphs: {len(graphs) if graphs else 0}")
-        print(f"{'=' * 60}\n")
+
 
         return QueryResponse(
             thread_id=thread_id,
@@ -209,4 +194,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", timeout_keep_alive=300,port=8000)

@@ -1,8 +1,9 @@
 import json
 from typing import Literal
-
+from google.api_core import exceptions
 from langgraph.prebuilt import create_react_agent
 
+from backend.config.settings import invoke_with_retry
 from backend.models.results import KitchenAnalysisResult, ErrorResult
 from backend.models.state import State, AgentResponse, TeamResponse
 from langgraph.types import Command
@@ -54,9 +55,13 @@ def create_analyze_kitchen_node(analyze_kitchen_agent):
         print(f"DEBUG - Kitchen agent received task: '{task}'")
         message = task or "Analizza l'attività di cucina del soggetto richiesto."
 
-        # Invoca agent
-        focused_state = {"messages": [HumanMessage(content=message)]}
-        result = analyze_kitchen_agent.invoke(focused_state)
+        try:
+            result = invoke_with_retry(analyze_kitchen_agent, [HumanMessage(content=message)], 3)
+        except exceptions.ResourceExhausted as e:
+            print(f"Failed after all retries: {e}")
+
+
+
         print("result " + str(result))
 
         # Raccoglie TUTTI i risultati dai ToolMessage

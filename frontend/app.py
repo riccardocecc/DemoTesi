@@ -8,7 +8,7 @@ import time
 # Configurazione della pagina
 st.set_page_config(
     page_title="Demo multi agent",
-    page_icon="🤖",
+    page_icon="",
     layout="wide"
 )
 

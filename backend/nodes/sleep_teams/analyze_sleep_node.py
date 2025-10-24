@@ -1,9 +1,10 @@
 import json
+from google.api_core import exceptions
 from typing import Literal
 
 from langgraph.prebuilt import create_react_agent
 
-
+from backend.config.settings import invoke_with_retry
 from backend.models.results  import(
 SleepStatisticsResult,
     SleepDistributionResult,
@@ -91,9 +92,12 @@ def create_analyze_sleep_node(analyze_sleep_agent):
         print(f"DEBUG - Sleep agent received task: '{task}'")
         message = task or "Analizza il sonno del soggetto richiesto."
 
-        # Invoca agent
-        focused_state = {"messages": [HumanMessage(content=message)]}
-        result = analyze_sleep_agent.invoke(focused_state)
+
+        try:
+            result = invoke_with_retry(analyze_sleep_agent, [HumanMessage(content=message)])
+        except exceptions.ResourceExhausted as e:
+            print(f"Failed after all retries: {e}")
+
         print("CHIAMTA LLM")
         print("result " + str(result))
 

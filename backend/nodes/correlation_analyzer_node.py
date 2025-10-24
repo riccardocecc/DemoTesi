@@ -1,8 +1,12 @@
 from typing import Literal
+
+from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
 from langgraph.graph import END
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from google.api_core import exceptions
 
+from backend.config.settings import invoke_with_retry
 from backend.models.state import State
 
 
@@ -14,6 +18,35 @@ def create_correlation_analyzer_node(llm):
     Nota: I grafici vengono generati INTERNAMENTE dai team (es. sleep_visualization)
     prima di arrivare qui, quindi sono già presenti nello state.
     """
+    prompt = (
+        "Sei un assistente esperto nell'analisi di dati sanitari. "
+        "Rispondi alla domanda dell'utente in modo CONCISO e DIRETTO basandoti SOLO sui dati strutturati forniti.\n\n"
+
+        "REGOLE FONDAMENTALI:\n"
+        "1. Rispondi SOLO alla domanda specifica posta dall'utente (original_question)\n"
+        "2. Usa MASSIMO 2-3 paragrafi brevi\n"
+        "3. Evidenzia solo i dati più rilevanti per rispondere alla domanda\n"
+        "4. Usa **grassetto** solo per metriche chiave (es: **439.6 minuti**, **4 risvegli**)\n"
+        "5. Evita introduzioni lunghe o conclusioni generiche\n"
+        "6. Se ci sono grafici disponibili, menzionali in UNA sola frase alla fine\n\n"
+
+        "STILE DI RISPOSTA:\n"
+        "- Professionale ma diretto\n"
+        "- Dati prima, interpretazioni dopo\n"
+        "- Niente ripetizioni o ridondanze\n"
+        "- Numeri concreti invece di descrizioni vaghe\n\n"
+
+        "FORMATO PREFERITO:\n"
+        "Paragrafo 1: Risposta diretta alla domanda con i dati principali\n"
+        "Paragrafo 2: Eventuali pattern o anomalie rilevanti\n"
+        "Paragrafo 3 (opzionale): Breve contestualizzazione se necessaria\n"
+        "Menzione grafici (se presenti): Una sola riga finale\n"
+    )
+    agent = create_react_agent(
+        llm,
+        tools=[],
+        prompt=prompt
+    )
 
     def correlation_analyzer_node(state: State) -> Command[Literal["__end__"]]:
         """
@@ -24,23 +57,38 @@ def create_correlation_analyzer_node(llm):
         print("CORRELATION ANALYZER - Synthesizing final answer")
         print(f"{'=' * 60}\n")
 
-        original_question = state.get("original_question", "")
         team_responses = state.get("structured_responses", [])
         graphs = state.get("graphs", [])
-        print("TEAM RESPONSES", team_responses)
+
+
         # Estrai tutti gli AgentResponse da tutti i TeamResponse
         all_agent_responses = []
+        all_tasks = []
+
         for team_resp in team_responses:
-            all_agent_responses.extend(team_resp["structured_responses"])
+            if "structured_responses" in team_resp:
+                for agent_resp in team_resp["structured_responses"]:
+                    all_agent_responses.append(agent_resp)
+                    # Raccogli tutte le task
+                    if "task" in agent_resp:
+                        all_tasks.append(agent_resp["task"])
+
+        # Ricostruisci la domanda originale dalle task
+        if all_tasks:
+            original_question = " e ".join(all_tasks)
+        else:
+            original_question = state.get("original_question", "Analisi dati")
+
 
         # Log dei grafici disponibili
         if graphs:
-            print(f"📊 Available graphs ({len(graphs)}):")
+            print(f"Available graphs ({len(graphs)}):")
             for g in graphs:
                 print(f"   - {g['id']}: {g['title']}")
         else:
-            print("📊 No graphs generated")
+            print("No graphs generated")
 
+        # Costruisci il prompt per l'analisi
         analysis_prompt = (
             f"Domanda originale: {original_question}\n\n"
             f"Dati strutturati ricevuti dagli agenti:\n"
@@ -63,36 +111,20 @@ def create_correlation_analyzer_node(llm):
                 f"Menziona solo la loro esistenza se rilevante per la risposta.\n"
             )
 
-        analysis_prompt += (
-            f"\n{'=' * 60}\n"
-            f"ISTRUZIONI PER LA RISPOSTA:\n"
-            f"{'=' * 60}\n\n"
-            f"1. Analizza i dati ricevuti identificando pattern, trend e anomalie\n"
-            f"2. Se richiesto, evidenzia correlazioni tra diversi domini\n"
-            f"3. Rispondi in italiano con linguaggio chiaro e professionale\n"
-            f"4. Usa grassetto per i punti chiave e spiega le metriche in modo comprensibile\n"
-            f"5. Fornisci una sintesi concisa ma completa, senza omettere informazioni rilevanti\n"
-            f"6. Se ci sono grafici, menzionali brevemente ma NON descriverli in dettaglio\n"
-        )
 
-        messages = [
-            SystemMessage(content=(
-                "Sei un assistente esperto nell'analisi di dati sanitari e comportamentali. "
-                "Il tuo compito è analizzare dati strutturati provenienti da diversi agenti "
-                "(sonno, cucina, mobilità) e identificare correlazioni, pattern e insight significativi. "
-                "Trasforma questi dati tecnici in risposte chiare ma brevi "
-                "per l'utente finale. Usa un tono professionale ma empatico."
-            )),
-            HumanMessage(content=analysis_prompt)
-        ]
 
-        # Invoca l'LLM per la sintesi
-        final_response = llm.invoke(messages)
-        print("CHIAMTA LLM")
+        try:
+            result = invoke_with_retry(agent, HumanMessage(content=analysis_prompt),3)
+        except exceptions.ResourceExhausted as e:
+             print(f"retry fallita in {e} tentativi")
+
+
+        final_response = result['messages'][-1]
+
 
         print(f"\nFINAL ANSWER:")
         print(f"{'-' * 60}")
-        print(final_response.content)
+        print(final_response)
         print(f"{'-' * 60}\n")
 
         return Command(

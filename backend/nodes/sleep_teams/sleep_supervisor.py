@@ -1,4 +1,5 @@
 import time
+from google.api_core import exceptions
 from typing import Literal, TypedDict
 from langchain_core.language_models.chat_models import BaseChatModel
 
@@ -6,6 +7,7 @@ from langgraph.graph import END
 from langgraph.types import Command
 from langchain_core.messages import HumanMessage, AIMessage
 
+from backend.config.settings import  invoke_with_structured_output
 from backend.models.state import State
 
 
@@ -95,7 +97,7 @@ def make_supervisor_sleep(llm: BaseChatModel, members: list[str]):
 
 
         if cross_domain:
-            context_message += "⚠️ IMPORTANT: cross_domain = True, so skip visualization and go to FINISH after data collection!\n"
+            context_message += "IMPORTANT: cross_domain = True, so skip visualization and go to FINISH after data collection!\n"
         else:
             context_message += "Remember: Prefer visualization unless the user explicitly wants only text/numbers.\n"
 
@@ -104,7 +106,11 @@ def make_supervisor_sleep(llm: BaseChatModel, members: list[str]):
                        {"role": "user", "content": context_message}
                    ] + state["messages"][-2:]  # Ultimi 2 messaggi per context
 
-        response = llm.with_structured_output(Router).invoke(messages)
+        try:
+            response = invoke_with_structured_output(llm, Router, messages, 3 )
+        except exceptions.ResourceExhausted as e:
+            print(f"Failed after all retries: {e}")
+
         print("CHIAMTA LLM - SLEEP SUPERVISOR")
         goto = response["next"]
 

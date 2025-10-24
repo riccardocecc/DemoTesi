@@ -50,7 +50,7 @@ def create_conversational_router(llm):
                 update={"messages":[ai_message]}
             )
 
-        # Altrimenti vai al planner
+
         return Command(
             goto="planner"
         )

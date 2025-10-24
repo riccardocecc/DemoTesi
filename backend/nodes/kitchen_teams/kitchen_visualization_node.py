@@ -5,11 +5,12 @@ Un solo agente ReAct che decide quali grafici generare e li crea.
 
 from typing import Literal
 import json
-
+from google.api_core import exceptions
 from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
 from langchain_core.messages import HumanMessage, ToolMessage
 
+from backend.config.settings import invoke_with_retry
 from backend.models.state import State, GraphData
 from backend.tools.visualization_kitchen_tool import (
     generate_kitchen_statistics_dashboard,
@@ -95,7 +96,10 @@ def create_kitchen_visualization_node(llm):
 Data: {json.dumps(data_dict, default=str)}"""
 
         try:
-            result = agent.invoke({"messages": [HumanMessage(content=prompt)]})
+            try:
+                result = invoke_with_retry(agent, [HumanMessage(content=prompt)], 3)
+            except exceptions.ResourceExhausted as e:
+                print(f"Failed after all retries: {e}")
 
             graphs: list[GraphData] = []
 

@@ -1,7 +1,8 @@
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import StateGraph, START
 
-from backend.config.settings import llm_agents, llm_supervisor, llm_query, llm_visualization, llm_graph_generator
+from backend.config.settings import llm_agents, llm_supervisor, llm_query, llm_visualization, llm_graph_generator, \
+    llm_correlation
 from backend.models.state import State
 from backend.nodes.conversational_router import create_conversational_router
 from backend.nodes.graph_generator_node import create_graph_generator_agent, create_graph_generator_node
@@ -36,7 +37,7 @@ def build_graph():
         llm_supervisor,
         teams=["sleep_team", "kitchen_team", "mobility_team"]
     )
-    correlation_analyzer = create_correlation_analyzer_node(llm_supervisor)
+    correlation_analyzer = create_correlation_analyzer_node(llm_correlation)
     graph_generetor_node = create_graph_generator_node(graph_generetor_agent)
 
     builder = StateGraph(State)

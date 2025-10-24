@@ -5,11 +5,12 @@ Agente ReAct che usa i nuovi tool basati sui 3 tool di analisi del sonno.
 
 from typing import Literal
 import json
-
+from google.api_core import exceptions
 from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
 from langchain_core.messages import HumanMessage, ToolMessage
 
+from backend.config.settings import invoke_with_retry
 from backend.models.state import State, GraphData
 from backend.tools.visualization_sleep_tools import (
     generate_sleep_phases_chart,
@@ -96,7 +97,7 @@ def create_sleep_visualization_node(llm):
             )
 
         # Log dei dati disponibili
-        print("📊 Available data:")
+        print("Available data:")
         if sleep_data:
             if "results" in sleep_data:
                 print(f"   - sleep_data with {sleep_data['num_analyses']} analyses")
@@ -119,7 +120,11 @@ Available data: {json.dumps(data_dict, default=str, indent=2)}
 Generate appropriate graphs based on the query and available data."""
 
         try:
-            result = agent.invoke({"messages": [HumanMessage(content=prompt)]})
+            try:
+                result = invoke_with_retry(agent, [HumanMessage(content=prompt)], 3)
+            except exceptions.ResourceExhausted as e:
+                print(f"Generazione garfico fallito dopo {e} tenativi")
+
             print("CHIAMTA LLM")
 
             graphs: list[GraphData] = []

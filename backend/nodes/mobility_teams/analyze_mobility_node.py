@@ -1,8 +1,9 @@
 import json
 from typing import Literal
-
+from google.api_core import exceptions
 from langgraph.prebuilt import create_react_agent
 
+from backend.config.settings import invoke_with_retry
 from backend.models.results import MobilityAnalysisResult, ErrorResult
 from backend.models.state import State, AgentResponse, TeamResponse
 from langgraph.types import Command
@@ -28,9 +29,11 @@ def create_analyze_mobility_node(analyze_mobility_agent):
         print(f"DEBUG - Mobility agent received task: '{task}'")
         message = task or "Analizza la mobilità del soggetto richiesto."
 
-        # Invoca agent con focused_state
-        focused_state = {"messages": [HumanMessage(content=message)]}
-        result = analyze_mobility_agent.invoke(focused_state)
+
+        try:
+            result = invoke_with_retry(analyze_mobility_agent, [HumanMessage(content=message)], 3)
+        except exceptions.ResourceExhausted as e:
+            print(f"Failed after all retries: {e}")
         print("result " + str(result))
 
 

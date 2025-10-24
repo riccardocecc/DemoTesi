@@ -1,5 +1,6 @@
 from typing import Annotated, Literal
 import json
+from google.api_core import exceptions
 
 from langchain_experimental.utilities import PythonREPL
 from langchain_core.tools import tool
@@ -7,6 +8,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
 
+from backend.config.settings import invoke_with_retry
 from backend.models.state import State, GraphData
 
 repl = PythonREPL()
@@ -100,8 +102,11 @@ def create_graph_generator_node(graph_generator_agent):
 
             messages = state["messages"] + [HumanMessage(content=data_summary)]
 
-            # Invoca l'agente
-            result = graph_generator_agent.invoke({"messages": messages})
+            try:
+                result = invoke_with_retry(graph_generator_agent, messages)
+            except exceptions.ResourceExhausted as e:
+                print(f"Failed after all retries: {e}")
+
 
             toDict = {}
             try:
@@ -129,13 +134,9 @@ def create_graph_generator_node(graph_generator_agent):
                 type="plotly",
                 plotly_json=toDict
             )
-
-            existing_graphs = state.get("graphs", [])
-            updated_graphs = existing_graphs + [graph_data]
-
             return Command(
                 update={
-                    "graphs": updated_graphs,
+                    "graphs": [graph_data],
                     "messages": output_messages,
                 },
                 goto="correlation_analyzer"
