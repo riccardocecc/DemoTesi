@@ -223,3 +223,5 @@ class MobilityAnalysisResult(TypedDict):
 
 class ErrorResult(TypedDict):
     error: str
+
+

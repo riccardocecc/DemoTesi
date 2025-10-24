@@ -12,8 +12,7 @@ from langchain_core.messages import HumanMessage, ToolMessage
 
 from backend.config.settings import invoke_with_retry
 from backend.models.state import State, GraphData
-from backend.tools.visualization_mobility_tool import generate_mobility_room_distribution_chart, \
-    generate_mobility_timeslot_chart
+from backend.tools.visualization_mobility_tool import visualize_mobility_patterns
 
 
 def create_mobility_visualization_node(llm):
@@ -23,21 +22,14 @@ def create_mobility_visualization_node(llm):
 
     # Tool disponibili
     tools = [
-        generate_mobility_room_distribution_chart,
-        generate_mobility_timeslot_chart
+        visualize_mobility_patterns
     ]
 
     # System prompt conciso
     system_prompt = (
         "You generate Plotly graphs for mobility analysis.\n\n"
         "AVAILABLE TOOLS:\n"
-        "- generate_mobility_room_distribution_chart: bar chart of presence by room\n"
-        "- generate_mobility_timeslot_chart: bar chart of activity by time slot (night/morning/afternoon/evening)\n\n"
-        "RULES:\n"
-        "- If query mentions specific aspects (rooms, time slots, etc), generate ONLY those graphs\n"
-        "- If query is generic ('mobility patterns?'), generate both graphs\n"
-        "- Use mobility_data for all tools\n"
-        "- Generate graphs that answer the user's question\n"
+        "- visualize_mobility_patterns: visualizza come si muove o si comporta dentro casa il paziente\n"
     )
 
     # Crea agente ReAct
@@ -66,7 +58,7 @@ def create_mobility_visualization_node(llm):
                 break
 
         if not mobility_data:
-            print("⚠️  No data available, skipping visualization")
+            print("⚠No data available, skipping visualization")
             return Command(
                 goto="mobility_team_supervisor",
                 update={
@@ -112,13 +104,12 @@ Data: {json.dumps(data_dict, default=str)}"""
 
             print(f"\n✅ Generated {len(graphs)} graphs\n")
 
-            # Update state
-            existing_graphs = state.get("graphs", [])
+
 
             return Command(
                 goto="mobility_team_supervisor",
                 update={
-                    "graphs": existing_graphs + graphs,
+                    "graphs":  graphs,
                     "messages": [HumanMessage(
                         content=f"Visualization completed: {len(graphs)} graphs",
                         name="mobility_visualization"

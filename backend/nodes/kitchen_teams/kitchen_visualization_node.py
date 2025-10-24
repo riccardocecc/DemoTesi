@@ -13,13 +13,10 @@ from langchain_core.messages import HumanMessage, ToolMessage
 from backend.config.settings import invoke_with_retry
 from backend.models.state import State, GraphData
 from backend.tools.visualization_kitchen_tool import (
-    generate_kitchen_statistics_dashboard,
-    generate_kitchen_variability_box,
-    generate_kitchen_timeslot_chart,
-    generate_kitchen_duration_by_timeslot,
-    generate_kitchen_temperature_distribution,
-    generate_kitchen_temperature_gauge,
-    generate_kitchen_temp_by_timeslot
+visualize_kitchen_statistics,
+visualize_kitchen_usage_pattern,
+visualize_kitchen_temperature
+
 )
 
 
@@ -28,30 +25,21 @@ def create_kitchen_visualization_node(llm):
     Crea un nodo di visualizzazione semplice con un agente ReAct.
     """
     tools = [
-        generate_kitchen_statistics_dashboard,
-        generate_kitchen_variability_box,
-        generate_kitchen_timeslot_chart,
-        generate_kitchen_duration_by_timeslot,
-        generate_kitchen_temperature_distribution,
-        generate_kitchen_temperature_gauge,
-        generate_kitchen_temp_by_timeslot
+        visualize_kitchen_statistics,
+        visualize_kitchen_usage_pattern,
+        visualize_kitchen_temperature
     ]
 
     system_prompt = (
         "You generate Plotly graphs for kitchen usage analysis.\n\n"
         "AVAILABLE TOOLS:\n"
-        "- generate_kitchen_statistics_dashboard: dashboard with statistics (mean±std)\n"
-        "- generate_kitchen_variability_box: box plots showing variability\n"
-        "- generate_kitchen_timeslot_chart: bar chart of usage by time slot (breakfast/lunch/dinner)\n"
-        "- generate_kitchen_duration_by_timeslot: bar chart of duration by time slot\n"
-        "- generate_kitchen_temperature_distribution: bar chart of low/medium/high temp activities\n"
-        "- generate_kitchen_temperature_gauge: gauge showing average temperature\n"
-        "- generate_kitchen_temp_by_timeslot: bar chart of temperature by time slot\n\n"
+        "- visualize_kitchen_statistics: visualizzazione per domande generiche sulla cucina\n"
+        "- visualize_kitchen_usage_pattern:  visualizzazione per fascie orario di utilizzo della cucina, come utilizza la cucina in (mattina, pranzo,cena)\n"
+        "- visualize_kitchen_temperature: visualizzazione per l'analisi delle temperature in cucina\n"
         "RULES:\n"
-        "- If query mentions specific aspects (meal times, frequency, temperature, etc), generate ONLY those graphs\n"
-        "- If query is generic ('kitchen usage?'), use generate_kitchen_statistics_dashboard\n"
-        "- Use kitchen_data for all tools\n"
-        "- Generate graphs that answer the user's question\n"
+      "RULES\n"
+        "for generic query about sleep use ONLY visualize_kitchen_statistics\n"
+        "IMPORTANT choose ONLY THE MOST RELEVANT. MAX 1 graph for each query"
     )
 
     agent = create_react_agent(llm, tools=tools, prompt=system_prompt)
@@ -117,14 +105,13 @@ Data: {json.dumps(data_dict, default=str)}"""
                         graphs.append(content)
                         print(f"✓ Generated: {content['id']}")
 
-            print(f"\n✅ Generated {len(graphs)} graphs total\n")
+            print(f"\nGenerated {len(graphs)} graphs total\n")
 
-            existing_graphs = state.get("graphs", [])
 
             return Command(
                 goto="kitchen_team_supervisor",
                 update={
-                    "graphs": existing_graphs + graphs,
+                    "graphs":  graphs,
                     "messages": [HumanMessage(
                         content=f"Visualization completed: {len(graphs)} graphs",
                         name="kitchen_visualization"

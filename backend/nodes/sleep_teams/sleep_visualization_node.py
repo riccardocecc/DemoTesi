@@ -13,13 +13,9 @@ from langchain_core.messages import HumanMessage, ToolMessage
 from backend.config.settings import invoke_with_retry
 from backend.models.state import State, GraphData
 from backend.tools.visualization_sleep_tools import (
-    generate_sleep_phases_chart,
-    generate_sleep_efficiency_gauge,
-    generate_sleep_statistics_dashboard,
-    generate_sleep_disturbances_chart,
-    generate_sleep_correlation_heatmap,
-    generate_sleep_variability_box,
-    generate_heart_rate_timeline
+    visualize_sleep_statistics,
+    visualize_sleep_distribution,
+    visualize_sleep_quality_correlation
 )
 
 
@@ -31,29 +27,22 @@ def create_sleep_visualization_node(llm):
 
     # Tool disponibili (7 grafici)
     tools = [
-        generate_sleep_phases_chart,
-        generate_sleep_efficiency_gauge,
-        generate_sleep_statistics_dashboard,
-        generate_sleep_disturbances_chart,
-        generate_sleep_correlation_heatmap,
-        generate_sleep_variability_box,
-        generate_heart_rate_timeline
+        visualize_sleep_statistics,
+        visualize_sleep_distribution,
+        visualize_sleep_quality_correlation
     ]
 
     # System prompt aggiornato
     system_prompt = (
         "You generate Plotly graphs for sleep analysis based on 3 types of data:\n\n"
         "AVAILABLE TOOLS:\n"
-        "- generate_sleep_phases_chart: pie chart of REM/deep/light sleep (needs distribution data)\n"
-        "- generate_sleep_efficiency_gauge: gauge 0-100% (needs distribution data)\n"
-        "- generate_sleep_statistics_dashboard: 4 metrics with mean±std (needs statistics data)\n"
-        "- generate_sleep_disturbances_chart: bar chart wake-ups (needs quality_correlation data)\n"
-        "- generate_sleep_correlation_heatmap: correlations heatmap (needs quality_correlation data)\n"
-        "- generate_sleep_variability_box: box plots showing variability (needs statistics data)\n"
-        "- generate_heart_rate_timeline: line chart heart rate over time (needs heart_data)\n\n"
+        "- visualize_sleep_statistics: statistiche generali sul sonno \n"
+        "- visualize_sleep_distribution: visualizzazione per la distribuzione delle fasi del sonno (REM, DEEP, LEGGER)\n"
+        "- visualize_sleep_quality_correlation: visualizzazione per le correlazioni tra interruzioni e qualità del sonno Risvegli vs Tempo di sonno"
+        "- Uscite dal letto vs Tempo di sonno\n"
         "RULES\n"
-        "for generic query about sleep use ONLY generate_sleep_statistics_dashboard\n"
-        "choose ONLY the most relevant graph. MAX 2 graph for each query"
+        "for generic query about sleep use ONLY visualize_sleep_statistics\n"
+        "IMPORTANT choose ONLY THE MOST RELEVANT. MAX 1 graph for each query"
     )
 
     # Crea agente ReAct
@@ -85,7 +74,7 @@ def create_sleep_visualization_node(llm):
                 break
 
         if not sleep_data and not heart_data:
-            print("⚠️  No data available, skipping visualization")
+            print("No data available, skipping visualization")
             return Command(
                 goto="sleep_team_supervisor",
                 update={

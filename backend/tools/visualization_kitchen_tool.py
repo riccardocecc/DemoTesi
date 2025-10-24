@@ -1,384 +1,264 @@
-"""
-Tool per la generazione di grafici del dominio Kitchen.
-Ogni tool corrisponde a un template Plotly basato sui nuovi tool di analisi.
-"""
+from __future__ import annotations
 
+from typing import Annotated
 from langchain_core.tools import tool
-from typing import Any
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 from backend.models.results import (
     KitchenStatisticsResult,
     KitchenUsagePatternResult,
-    KitchenTemperatureAnalysisResult
+    KitchenTemperatureAnalysisResult,
+    ErrorResult,
 )
 from backend.models.state import GraphData
-from backend.utils.graph_templates import (
-    create_kitchen_statistics_dashboard,
-    create_kitchen_timeslot_bar,
-    create_kitchen_duration_by_timeslot,
-    create_kitchen_temperature_distribution,
-    create_kitchen_temperature_gauge,
-    create_kitchen_temp_by_timeslot,
-    create_kitchen_variability_box
-)
 
 
 @tool
-def generate_kitchen_statistics_dashboard(kitchen_data: dict) -> dict:
+def visualize_kitchen_statistics(
+    result: Annotated[KitchenStatisticsResult, "Result from analyze_kitchen_statistics tool"]
+) -> GraphData | ErrorResult:
     """
-    Genera un dashboard con statistiche descrittive della cucina (media ± std dev).
-
-    Questo tool si aspetta dati dal tool analyze_kitchen_statistics che contiene:
-    - Statistiche complete per durata, temperatura, frequenza
-
-    Mostra 3 metriche principali:
-    - Durata media delle attività
-    - Temperatura massima media
-    - Frequenza giornaliera media
-
-    Usa questo tool quando l'utente chiede:
-    - Statistiche cucina
-    - Media e variabilità
-    - Panoramica statistica
-    - Dati aggregati cucina
-
+    Crea una visualizzazione per le statistiche delle attività in cucina.
+    
+    Genera un grafico combinato che mostra:
+    - Numero totale di attività nel periodo
+    - Numero di giorni analizzati
+    - Statistiche delle attività giornaliere (media, mediana, min, max)
+    
     Args:
-        kitchen_data: Dizionario con i dati che può contenere:
-            - "statistics": KitchenStatisticsResult
-            - oppure direttamente le chiavi di KitchenStatisticsResult
-            - subject_id
-
+        result: Risultato del tool analyze_kitchen_statistics
+        
     Returns:
-        GraphData con il grafico Plotly
+        GraphData con il grafico Plotly in formato JSON, oppure ErrorResult
     """
     try:
-        if "error" in kitchen_data:
-            return {"error": "Dati della cucina non disponibili"}
-
-        # Estrai i dati corretti
-        if "results" in kitchen_data:
-            statistics_data = None
-            for result in kitchen_data["results"]:
-                if "duration_minutes" in result and isinstance(result.get("duration_minutes"), dict):
-                    statistics_data = result
-                    break
-            if not statistics_data:
-                return {"error": "Dati statistici cucina non disponibili"}
-        elif "statistics" in kitchen_data:
-            statistics_data = kitchen_data["statistics"]
-        elif "duration_minutes" in kitchen_data and isinstance(kitchen_data.get("duration_minutes"), dict):
-            statistics_data = kitchen_data
-        else:
-            return {"error": "Formato dati non valido per statistiche"}
-
-        graph = create_kitchen_statistics_dashboard(statistics_data)
-        return graph
+        # Crea subplot con 2 righe
+        fig = make_subplots(
+            rows=2, cols=1,
+            subplot_titles=(
+                f"Panoramica Periodo: {result['period']}",
+                "Distribuzione Attività Giornaliere"
+            ),
+            specs=[[{"type": "bar"}], [{"type": "bar"}]],
+            vertical_spacing=0.15
+        )
+        
+        # Prima riga: Totale attività e giorni
+        fig.add_trace(
+            go.Bar(
+                x=["Totale Attività", "Giorni Analizzati"],
+                y=[result["total_activities"], result["num_days"]],
+                marker_color=["#3b82f6", "#8b5cf6"],
+                text=[result["total_activities"], result["num_days"]],
+                textposition="auto",
+                name="Panoramica"
+            ),
+            row=1, col=1
+        )
+        
+        # Seconda riga: Statistiche attività per giorno
+        activities_stats = result["activities_per_day"]
+        fig.add_trace(
+            go.Bar(
+                x=["Media", "Mediana", "Min", "Max"],
+                y=[
+                    activities_stats["average"],
+                    activities_stats["median"],
+                    activities_stats["min"],
+                    activities_stats["max"]
+                ],
+                marker_color=["#10b981", "#06b6d4", "#f59e0b", "#ef4444"],
+                text=[
+                    f"{activities_stats['average']:.1f}",
+                    f"{activities_stats['median']:.1f}",
+                    f"{activities_stats['min']:.0f}",
+                    f"{activities_stats['max']:.0f}"
+                ],
+                textposition="auto",
+                name="Attività/Giorno"
+            ),
+            row=2, col=1
+        )
+        
+        # Layout
+        fig.update_layout(
+            showlegend=False,
+            height=600,
+            template="plotly_white"
+        )
+        
+        fig.update_xaxes(title_text="Metriche", row=1, col=1)
+        fig.update_yaxes(title_text="Valore", row=1, col=1)
+        
+        fig.update_xaxes(title_text="Statistiche", row=2, col=1)
+        fig.update_yaxes(title_text="Attività per Giorno", row=2, col=1)
+        
+        graph_data: GraphData = {
+            "id": f"kitchen_stats_{result['subject_id']}",
+            "title": f"Statistiche Attività Cucina - Soggetto {result['subject_id']}",
+            "type": "kitchen_statistics",
+            "plotly_json": fig.to_dict()
+        }
+        
+        return graph_data
+        
     except Exception as e:
-        return {"error": f"Errore nella generazione del grafico: {str(e)}"}
+        return ErrorResult(error=f"Errore nella visualizzazione statistiche cucina: {str(e)}")
 
 
 @tool
-def generate_kitchen_variability_box(kitchen_data: dict) -> dict:
+def visualize_kitchen_usage_pattern(
+    result: Annotated[KitchenUsagePatternResult, "Result from analyze_kitchen_usage_pattern tool"]
+) -> GraphData | ErrorResult:
     """
-    Genera box plot per mostrare la variabilità delle metriche cucina.
+    Crea una visualizzazione per i pattern di utilizzo della cucina.
+    
+    Genera grafici che mostrano:
+    - Distribuzione delle attività per fascia oraria (mattina, pranzo, cena)
+    - Metriche aggregate (attività totali, attività/giorno, ore di cucina)
+    
+    Args:
+        result: Risultato del tool analyze_kitchen_usage_pattern
+        
+    Returns:
+        GraphData con il grafico Plotly in formato JSON, oppure ErrorResult
+    """
+    try:
+        # Crea subplot con 2 colonne
+        fig = make_subplots(
+            rows=1, cols=2,
+            subplot_titles=(
+                "Distribuzione per Fascia Oraria",
+                "Metriche Aggregate"
+            ),
+            specs=[[{"type": "bar"}, {"type": "bar"}]],
+            horizontal_spacing=0.15
+        )
+        
+        # Prima colonna: Distribuzione per fascia oraria
+        timeslots = ["Mattina", "Pranzo", "Cena"]
+        timeslot_keys = ["mattina", "pranzo", "cena"]
+        counts = [result["timeslot_distribution"][key]["count"] for key in timeslot_keys]
+        percentages = [result["timeslot_distribution"][key]["percentage"] for key in timeslot_keys]
+        
+        fig.add_trace(
+            go.Bar(
+                x=timeslots,
+                y=counts,
+                marker_color=["#fbbf24", "#f97316", "#8b5cf6"],
+                text=[f"{count}<br>({pct:.1f}%)" for count, pct in zip(counts, percentages)],
+                textposition="auto",
+                name="Attività per Fascia"
+            ),
+            row=1, col=1
+        )
+        
+        # Seconda colonna: Metriche aggregate
+        metrics = ["Totale<br>Attività", "Attività<br>al Giorno", "Ore Totali<br>Cucina"]
+        values = [
+            result["total_activities"],
+            result["activities_per_day"],
+            result["total_cooking_time_hours"]
+        ]
+        
+        fig.add_trace(
+            go.Bar(
+                x=metrics,
+                y=values,
+                marker_color=["#3b82f6", "#10b981", "#ec4899"],
+                text=[f"{val:.1f}" for val in values],
+                textposition="auto",
+                name="Metriche"
+            ),
+            row=1, col=2
+        )
+        
+        # Layout
+        fig.update_layout(
+            showlegend=False,
+            height=500,
+            template="plotly_white"
+        )
+        
+        fig.update_xaxes(title_text="Fascia Oraria", row=1, col=1)
+        fig.update_yaxes(title_text="Numero Attività", row=1, col=1)
+        
+        fig.update_xaxes(title_text="Metrica", row=1, col=2)
+        fig.update_yaxes(title_text="Valore", row=1, col=2)
+        
+        graph_data: GraphData = {
+            "id": f"kitchen_pattern_{result['subject_id']}",
+            "title": f"Pattern Utilizzo Cucina - Soggetto {result['subject_id']}",
+            "type": "kitchen_usage_pattern",
+            "plotly_json": fig.to_dict()
+        }
+        
+        return graph_data
+        
+    except Exception as e:
+        return ErrorResult(error=f"Errore nella visualizzazione pattern cucina: {str(e)}")
 
-    Questo tool si aspetta dati dal tool analyze_kitchen_statistics che contiene:
-    - Statistiche complete (min, median, average, max, std_dev) per ogni metrica
 
-    Mostra min, Q1, mediana, Q3, max per:
-    - Durata attività
+@tool
+def visualize_kitchen_temperature(
+    result: Annotated[KitchenTemperatureAnalysisResult, "Result from analyze_kitchen_temperature tool"]
+) -> GraphData | ErrorResult:
+    """
+    Crea una visualizzazione per l'analisi delle temperature in cucina.
+    
+    Genera un grafico a barre che mostra:
+    - Temperatura media
     - Temperatura massima
-
-    Usa questo tool quando l'utente chiede:
-    - Variabilità cucina
-    - Range valori
-    - Distribuzione metriche
-    - Consistenza utilizzo cucina
-
+    - Temperatura minima
+    
     Args:
-        kitchen_data: Dizionario con i dati che può contenere:
-            - "statistics": KitchenStatisticsResult
-            - oppure direttamente le statistiche complete
-            - subject_id
-
+        result: Risultato del tool analyze_kitchen_temperature
+        
     Returns:
-        GraphData con il grafico Plotly
+        GraphData con il grafico Plotly in formato JSON, oppure ErrorResult
     """
     try:
-        if "error" in kitchen_data:
-            return {"error": "Dati della cucina non disponibili"}
-
-        # Estrai i dati corretti
-        if "results" in kitchen_data:
-            statistics_data = None
-            for result in kitchen_data["results"]:
-                if "duration_minutes" in result and isinstance(result.get("duration_minutes"), dict):
-                    statistics_data = result
-                    break
-            if not statistics_data:
-                return {"error": "Dati statistici per variabilità non disponibili"}
-        elif "statistics" in kitchen_data:
-            statistics_data = kitchen_data["statistics"]
-        elif "duration_minutes" in kitchen_data and isinstance(kitchen_data.get("duration_minutes"), dict):
-            statistics_data = kitchen_data
-        else:
-            return {"error": "Formato dati non valido per variabilità"}
-
-        graph = create_kitchen_variability_box(statistics_data)
-        return graph
+        # Crea grafico a barre semplice
+        fig = go.Figure()
+        
+        temperatures = ["Media", "Massima", "Minima"]
+        values = [
+            result["avg_temperature"],
+            result["max_temperature"],
+            result["min_temperature"]
+        ]
+        colors = ["#3b82f6", "#ef4444", "#10b981"]
+        
+        fig.add_trace(
+            go.Bar(
+                x=temperatures,
+                y=values,
+                marker_color=colors,
+                text=[f"{val:.1f}°C" for val in values],
+                textposition="auto",
+                textfont=dict(size=14, color="white"),
+                name="Temperature"
+            )
+        )
+        
+        # Layout
+        fig.update_layout(
+            xaxis_title="Tipo Temperatura",
+            yaxis_title="Temperatura (°C)",
+            showlegend=False,
+            height=500,
+            template="plotly_white"
+        )
+        
+        graph_data: GraphData = {
+            "id": f"kitchen_temp_{result['subject_id']}",
+            "title": f"Analisi Temperature Cucina - Soggetto {result['subject_id']}",
+            "type": "kitchen_temperature",
+            "plotly_json": fig.to_dict()
+        }
+        
+        return graph_data
+        
     except Exception as e:
-        return {"error": f"Errore nella generazione del grafico: {str(e)}"}
-
-
-@tool
-def generate_kitchen_timeslot_chart(kitchen_data: dict) -> dict:
-    """
-    Genera un grafico a barre che mostra l'utilizzo della cucina per fascia oraria.
-
-    Questo tool si aspetta dati dal tool analyze_kitchen_usage_pattern che contiene:
-    - timeslot_distribution con count, avg_duration, percentage per ogni fascia
-
-    Usa questo tool quando l'utente chiede informazioni su:
-    - Quando usa la cucina
-    - Distribuzione delle attività in cucina
-    - Orari dei pasti (colazione, pranzo, cena)
-    - Fasce orarie di utilizzo cucina
-    - Quando cucina di più
-
-    Args:
-        kitchen_data: Dizionario con i dati che può contenere:
-            - "usage_pattern": KitchenUsagePatternResult
-            - oppure direttamente timeslot_distribution
-            - subject_id
-
-    Returns:
-        GraphData con il grafico Plotly
-    """
-    try:
-        if "error" in kitchen_data:
-            return {"error": "Dati della cucina non disponibili"}
-
-        # Estrai i dati corretti
-        if "results" in kitchen_data:
-            pattern_data = None
-            for result in kitchen_data["results"]:
-                if "timeslot_distribution" in result and "most_active_slot" in result:
-                    pattern_data = result
-                    break
-            if not pattern_data:
-                return {"error": "Dati pattern cucina non disponibili"}
-        elif "usage_pattern" in kitchen_data:
-            pattern_data = kitchen_data["usage_pattern"]
-        elif "timeslot_distribution" in kitchen_data:
-            pattern_data = kitchen_data
-        else:
-            return {"error": "Formato dati non valido per timeslot"}
-
-        graph = create_kitchen_timeslot_bar(pattern_data)
-        return graph
-    except Exception as e:
-        return {"error": f"Errore nella generazione del grafico: {str(e)}"}
-
-
-@tool
-def generate_kitchen_duration_by_timeslot(kitchen_data: dict) -> dict:
-    """
-    Genera un grafico a barre per la durata media delle attività per fascia oraria.
-
-    Questo tool si aspetta dati dal tool analyze_kitchen_usage_pattern che contiene:
-    - timeslot_distribution con avg_duration per ogni fascia
-
-    Mostra quanto tempo mediamente si passa in cucina in ogni fascia.
-
-    Usa questo tool quando l'utente chiede:
-    - Durata attività per fascia
-    - Quanto tempo passa in cucina a pranzo/cena/mattina
-    - Tempo medio per pasto
-    - Analisi durata temporale
-
-    Args:
-        kitchen_data: Dizionario con i dati che può contenere:
-            - "usage_pattern": KitchenUsagePatternResult
-            - oppure direttamente timeslot_distribution
-            - subject_id
-
-    Returns:
-        GraphData con il grafico Plotly
-    """
-    try:
-        if "error" in kitchen_data:
-            return {"error": "Dati della cucina non disponibili"}
-
-        # Estrai i dati corretti
-        if "results" in kitchen_data:
-            pattern_data = None
-            for result in kitchen_data["results"]:
-                if "timeslot_distribution" in result and "most_active_slot" in result:
-                    pattern_data = result
-                    break
-            if not pattern_data:
-                return {"error": "Dati pattern cucina non disponibili"}
-        elif "usage_pattern" in kitchen_data:
-            pattern_data = kitchen_data["usage_pattern"]
-        elif "timeslot_distribution" in kitchen_data:
-            pattern_data = kitchen_data
-        else:
-            return {"error": "Formato dati non valido per durata"}
-
-        graph = create_kitchen_duration_by_timeslot(pattern_data)
-        return graph
-    except Exception as e:
-        return {"error": f"Errore nella generazione del grafico: {str(e)}"}
-
-
-@tool
-def generate_kitchen_temperature_distribution(kitchen_data: dict) -> dict:
-    """
-    Genera un grafico a barre per la distribuzione delle attività per intensità di temperatura.
-
-    Questo tool si aspetta dati dal tool analyze_kitchen_temperature che contiene:
-    - low_temp_count, medium_temp_count, high_temp_count
-
-    Mostra quante attività sono a bassa (<50°C), media (50-150°C) o alta (>150°C) temperatura.
-
-    Usa questo tool quando l'utente chiede:
-    - Intensità cottura
-    - Distribuzione temperature
-    - Tipi di cottura
-    - Quanto scalda quando cucina
-
-    Args:
-        kitchen_data: Dizionario con i dati che può contenere:
-            - "temperature": KitchenTemperatureAnalysisResult
-            - oppure direttamente low/medium/high_temp_count
-            - subject_id
-
-    Returns:
-        GraphData con il grafico Plotly
-    """
-    try:
-        if "error" in kitchen_data:
-            return {"error": "Dati della cucina non disponibili"}
-
-        # Estrai i dati corretti
-        if "results" in kitchen_data:
-            temp_data = None
-            for result in kitchen_data["results"]:
-                if "low_temp_count" in result and "temp_vs_duration_correlation" in result:
-                    temp_data = result
-                    break
-            if not temp_data:
-                return {"error": "Dati temperatura cucina non disponibili"}
-        elif "temperature" in kitchen_data:
-            temp_data = kitchen_data["temperature"]
-        elif "low_temp_count" in kitchen_data:
-            temp_data = kitchen_data
-        else:
-            return {"error": "Formato dati non valido per temperatura"}
-
-        graph = create_kitchen_temperature_distribution(temp_data)
-        return graph
-    except Exception as e:
-        return {"error": f"Errore nella generazione del grafico: {str(e)}"}
-
-
-@tool
-def generate_kitchen_temperature_gauge(kitchen_data: dict) -> dict:
-    """
-    Genera un gauge per la temperatura media raggiunta in cucina.
-
-    Questo tool si aspetta dati dal tool analyze_kitchen_temperature che contiene:
-    - avg_temperature, min_temperature, max_temperature
-
-    Mostra la temperatura media con fasce colorate per intensità.
-
-    Usa questo tool quando l'utente chiede:
-    - Temperatura media cucina
-    - Quanto scalda mediamente
-    - Range temperature
-    - Livello di cottura medio
-
-    Args:
-        kitchen_data: Dizionario con i dati che può contenere:
-            - "temperature": KitchenTemperatureAnalysisResult
-            - oppure direttamente avg/min/max_temperature
-            - subject_id
-
-    Returns:
-        GraphData con il grafico Plotly
-    """
-    try:
-        if "error" in kitchen_data:
-            return {"error": "Dati della cucina non disponibili"}
-
-        # Estrai i dati corretti
-        if "results" in kitchen_data:
-            temp_data = None
-            for result in kitchen_data["results"]:
-                if "avg_temperature" in result and "temp_vs_duration_correlation" in result:
-                    temp_data = result
-                    break
-            if not temp_data:
-                return {"error": "Dati temperatura cucina non disponibili"}
-        elif "temperature" in kitchen_data:
-            temp_data = kitchen_data["temperature"]
-        elif "avg_temperature" in kitchen_data:
-            temp_data = kitchen_data
-        else:
-            return {"error": "Formato dati non valido per gauge temperatura"}
-
-        graph = create_kitchen_temperature_gauge(temp_data)
-        return graph
-    except Exception as e:
-        return {"error": f"Errore nella generazione del grafico: {str(e)}"}
-
-
-@tool
-def generate_kitchen_temp_by_timeslot(kitchen_data: dict) -> dict:
-    """
-    Genera un grafico a barre per la temperatura media per fascia oraria.
-
-    Questo tool si aspetta dati dal tool analyze_kitchen_temperature che contiene:
-    - avg_temp_by_timeslot (dict con mattina, pranzo, cena)
-
-    Mostra se si cucina più intensamente in certe fasce orarie.
-
-    Usa questo tool quando l'utente chiede:
-    - Temperatura per fascia oraria
-    - Quando cucina più intensamente
-    - Cotture più calde a pranzo o cena
-    - Pattern temperatura temporale
-
-    Args:
-        kitchen_data: Dizionario con i dati che può contenere:
-            - "temperature": KitchenTemperatureAnalysisResult
-            - oppure direttamente avg_temp_by_timeslot
-            - subject_id
-
-    Returns:
-        GraphData con il grafico Plotly
-    """
-    try:
-        if "error" in kitchen_data:
-            return {"error": "Dati della cucina non disponibili"}
-
-        # Estrai i dati corretti
-        if "results" in kitchen_data:
-            temp_data = None
-            for result in kitchen_data["results"]:
-                if "avg_temp_by_timeslot" in result and "temp_vs_duration_correlation" in result:
-                    temp_data = result
-                    break
-            if not temp_data:
-                return {"error": "Dati temperatura per timeslot non disponibili"}
-        elif "temperature" in kitchen_data:
-            temp_data = kitchen_data["temperature"]
-        elif "avg_temp_by_timeslot" in kitchen_data:
-            temp_data = kitchen_data
-        else:
-            return {"error": "Formato dati non valido per temp by timeslot"}
-
-        graph = create_kitchen_temp_by_timeslot(temp_data)
-        return graph
-    except Exception as e:
-        return {"error": f"Errore nella generazione del grafico: {str(e)}"}
+        return ErrorResult(error=f"Errore nella visualizzazione temperature cucina: {str(e)}")
