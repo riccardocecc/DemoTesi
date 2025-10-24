@@ -42,11 +42,6 @@ def create_sleep_visualization_node(llm):
     # System prompt aggiornato
     system_prompt = (
         "You generate Plotly graphs for sleep analysis based on 3 types of data:\n\n"
-        "DATA TYPES:\n"
-        "1. analyze_sleep_statistics → statistics dashboard, variability box plot\n"
-        "2. analyze_sleep_distribution → phases pie chart, efficiency gauge\n"
-        "3. analyze_sleep_quality_correlation → disturbances bar, correlation heatmap\n"
-        "4. analyze_daily_heart_rate → heart rate timeline\n\n"
         "AVAILABLE TOOLS:\n"
         "- generate_sleep_phases_chart: pie chart of REM/deep/light sleep (needs distribution data)\n"
         "- generate_sleep_efficiency_gauge: gauge 0-100% (needs distribution data)\n"
@@ -56,7 +51,8 @@ def create_sleep_visualization_node(llm):
         "- generate_sleep_variability_box: box plots showing variability (needs statistics data)\n"
         "- generate_heart_rate_timeline: line chart heart rate over time (needs heart_data)\n\n"
         "RULES\n"
-        "for generic query about sleep use ONLY generate_sleep_statistics_dashboard"
+        "for generic query about sleep use ONLY generate_sleep_statistics_dashboard\n"
+        "choose ONLY the most relevant graph. MAX 2 graph for each query"
     )
 
     # Crea agente ReAct
@@ -124,6 +120,8 @@ Generate appropriate graphs based on the query and available data."""
 
         try:
             result = agent.invoke({"messages": [HumanMessage(content=prompt)]})
+            print("CHIAMTA LLM")
+
             graphs: list[GraphData] = []
 
             for msg in result["messages"]:
@@ -142,15 +140,12 @@ Generate appropriate graphs based on the query and available data."""
                     elif isinstance(content, dict) and "error" in content:
                         print(f"✗ Tool error: {content['error']}")
 
-            print(f"\n✅ Generated {len(graphs)} graphs total\n")
-
-            # Update state
-            existing_graphs = state.get("graphs", [])
+            print(f"\nGenerated {len(graphs)} graphs total\n")
 
             return Command(
                 goto="sleep_team_supervisor",
                 update={
-                    "graphs": existing_graphs + graphs,
+                    "graphs": graphs,
                     "messages": [HumanMessage(
                         content=f"Visualization completed: {len(graphs)} graphs",
                         name="sleep_visualization"

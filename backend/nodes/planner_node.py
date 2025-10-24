@@ -7,46 +7,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 
-from backend.models.state import State
-
-
-class TeamTask(BaseModel):
-    """Singolo task per un team specifico"""
-    team: Literal["sleep_team", "kitchen_team", "mobility_team"] = Field(
-        description="Nome del team che deve eseguire il task"
-    )
-    instruction: str = Field(
-        description="Istruzione specifica e dettagliata per il team, che include tutti gli aspetti da analizzare nel dominio di competenza"
-    )
-
-
-class ExecutionPlan(BaseModel):
-    """Piano di esecuzione completo"""
-    subject_id: int | None = Field(
-        description="ID del soggetto da analizzare (null se non specificato)"
-    )
-    period: str = Field(
-        description="Periodo da analizzare: 'last_N_days' o 'YYYY-MM-DD,YYYY-MM-DD'",
-        default="last_30_days"
-    )
-    cross_domain: bool = Field(
-        default=False,
-        description=(
-            "True se la query richiede correlazioni/relazioni tra domini diversi. "
-            "Quando True, i team di dominio (sleep/kitchen/mobility) non generano i grafici, "
-            "e il visualizzation node genera i grafici di correlazione."
-        )
-    )
-    tasks: list[TeamTask] = Field(
-        description="Lista ordinata di task da eseguire, uno per ogni team coinvolto"
-    )
-
-    def get_next_task(self, completed: set[str]) -> TeamTask | None:
-        """Restituisce il prossimo task non completato"""
-        for task in self.tasks:
-            if task.instruction not in completed:
-                return task
-        return None
+from backend.models.state import State, ExecutionPlan
 
 
 def create_planner_node(llm):
@@ -156,7 +117,7 @@ Piano:
   ]
 
 {format_instructions}"""),
-        MessagesPlaceholder(variable_name="messages"),  # ✅ Usa MessagesPlaceholder
+        MessagesPlaceholder(variable_name="messages"),
     ])
 
     # Chain: prompt -> LLM -> parser
@@ -178,6 +139,7 @@ Piano:
             "messages":state["messages"],
             "format_instructions": parser.get_format_instructions(),
         })
+        print("CHIAMATA LLM")
 
         unique_teams = set(task.team for task in plan.tasks)
         if len(unique_teams) > 1:
@@ -207,7 +169,10 @@ Piano:
             update={
                 "messages": [AIMessage(content=plan_summary)],
                 "execution_plan": plan,
-                "completed_tasks": set()
+                "completed_tasks": set(),
+                "structured_responses": [],
+                "graphs": None,
+                "next":None
             }
         )
 

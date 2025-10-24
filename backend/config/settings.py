@@ -1,6 +1,9 @@
 from dotenv import load_dotenv
 import os
 from pathlib import Path
+
+from langchain_mistralai import ChatMistralAI
+
 # Carica le variabili dal file .env
 load_dotenv()
 
@@ -8,6 +11,16 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 # Recupera la chiave dall'ambiente
 google_api_key = os.getenv("GOOGLE_API")
+mistral_api = os.getenv("MISTRAL")
+
+
+llm_graph_generator = ChatGoogleGenerativeAI(
+    model="gemini-2.5-pro",
+    google_api_key=google_api_key,
+    temperature=0.7,
+    max_retries=0
+)
+
 
 llm_supervisor  = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
@@ -32,7 +45,7 @@ llm_agents = ChatGoogleGenerativeAI(
 )
 
 llm_query = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
+    model="gemini-2.0-flash-exp",
     google_api_key=google_api_key,
     temperature=0,  #deterministico
     top_p=0.1,  #token più probabili
@@ -43,11 +56,9 @@ llm_query = ChatGoogleGenerativeAI(
 )
 
 llm_visualization = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
+    model="gemini-2.0-flash-exp",
     google_api_key=google_api_key,
-    temperature=0,  # Leggermente creativo per intent detection
-    top_p=0,
-    top_k=10,
+    temperature=0.5,  # Leggermente creativo per intent detection
     max_output_tokens=50000,
     timeout=30.0,
     max_retries=0

@@ -28,14 +28,11 @@ def run_demo_2():
     thread_id = str(uuid.uuid4())
     config = {
         "configurable": {
-
             "thread_id": thread_id,
-
         }
     }
 
-    print("Swiss Airlines Assistant avviato! ✈️")
-    print("Digita 'exit', 'quit', 'bye' o 'q' per uscire.\n")
+
 
     while True:
         user_input = input("Tu: ").strip()
@@ -48,7 +45,6 @@ def run_demo_2():
             continue
 
         try:
-            # ✅ Usa stream() correttamente
             print("\nAssistant: ", end="", flush=True)
 
             final_message = None
@@ -70,7 +66,7 @@ def run_demo_2():
             print()
 
         except Exception as e:
-            print(f"\n❌ Errore: {e}\n")
+            print(f"\nErrore: {e}\n")
 
 if __name__ == "__main__":
     start_time = time.time()

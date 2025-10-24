@@ -217,14 +217,13 @@ def create_sleep_statistics_dashboard(data: SleepStatisticsResult) -> GraphData:
     ), row=2, col=2)
 
     fig.update_layout(
-        title=f"Statistiche del Sonno - Soggetto {data['subject_id']}",
         height=500,
         margin=dict(t=100, b=20, l=20, r=20)
     )
 
     return {
         "id": "sleep_statistics_dashboard",
-        "title": "Statistiche del Sonno",
+        "title": f"Statistiche del Sonno - Soggetto {data['subject_id']}",
         "type": "indicator",
         "plotly_json": fig.to_dict()
     }

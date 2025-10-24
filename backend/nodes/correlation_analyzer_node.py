@@ -27,7 +27,7 @@ def create_correlation_analyzer_node(llm):
         original_question = state.get("original_question", "")
         team_responses = state.get("structured_responses", [])
         graphs = state.get("graphs", [])
-
+        print("TEAM RESPONSES", team_responses)
         # Estrai tutti gli AgentResponse da tutti i TeamResponse
         all_agent_responses = []
         for team_resp in team_responses:
@@ -88,6 +88,7 @@ def create_correlation_analyzer_node(llm):
 
         # Invoca l'LLM per la sintesi
         final_response = llm.invoke(messages)
+        print("CHIAMTA LLM")
 
         print(f"\nFINAL ANSWER:")
         print(f"{'-' * 60}")

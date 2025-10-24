@@ -1,10 +1,10 @@
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import StateGraph, START
 
-from backend.config.settings import llm_agents, llm_supervisor, llm_query, llm_visualization
+from backend.config.settings import llm_agents, llm_supervisor, llm_query, llm_visualization, llm_graph_generator
 from backend.models.state import State
 from backend.nodes.conversational_router import create_conversational_router
-from backend.nodes.correlation_graph_node import create_correlation_graph_node
+from backend.nodes.graph_generator_node import create_graph_generator_agent, create_graph_generator_node
 from backend.nodes.kitchen_teams.kitchen_graph import build_kitchen_graph
 from backend.nodes.mobility_teams.mobility_graph import build_mobility_graph
 from backend.nodes.sleep_teams.sleep_graph import build_sleep_graph
@@ -29,6 +29,7 @@ def build_graph():
     sleep_team_graph = build_sleep_graph(llm_agents, llm_supervisor)
     kitchen_team_graph = build_kitchen_graph(llm_agents, llm_supervisor)
     mobility_team_graph = build_mobility_graph(llm_agents, llm_supervisor)
+    graph_generetor_agent = create_graph_generator_agent(llm_graph_generator)
 
     planner = create_planner_node(llm_query)
     supervisor = make_supervisor_node(
@@ -36,8 +37,8 @@ def build_graph():
         teams=["sleep_team", "kitchen_team", "mobility_team"]
     )
     correlation_analyzer = create_correlation_analyzer_node(llm_supervisor)
+    graph_generetor_node = create_graph_generator_node(graph_generetor_agent)
 
-    correlation_graph_node = create_correlation_graph_node(llm_visualization)
     builder = StateGraph(State)
 
     conversational_router = create_conversational_router(llm_supervisor)
@@ -46,7 +47,7 @@ def build_graph():
     # nodi di coordinamento
     builder.add_node("planner", planner)
     builder.add_node("supervisor", supervisor)
-    builder.add_node("correlation_graph_node", correlation_graph_node)
+    builder.add_node("generator_node", graph_generetor_node)
     builder.add_node("correlation_analyzer", correlation_analyzer)
     builder.add_node("conversational_router",conversational_router)
 

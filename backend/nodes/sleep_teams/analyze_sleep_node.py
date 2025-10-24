@@ -94,6 +94,7 @@ def create_analyze_sleep_node(analyze_sleep_agent):
         # Invoca agent
         focused_state = {"messages": [HumanMessage(content=message)]}
         result = analyze_sleep_agent.invoke(focused_state)
+        print("CHIAMTA LLM")
         print("result " + str(result))
 
         # Raccoglie TUTTI i risultati dai ToolMessage
