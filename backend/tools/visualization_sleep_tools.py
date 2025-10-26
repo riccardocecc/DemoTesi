@@ -17,153 +17,124 @@ from backend.models.state import GraphData
 
 @tool
 def visualize_sleep_statistics(
-    result: Annotated[SleepStatisticsResult, "Result from analyze_sleep_statistics tool"]
+        result: Annotated[SleepStatisticsResult, "Result from analyze_sleep_statistics tool"]
 ) -> GraphData | ErrorResult:
     """
     Crea una visualizzazione per le statistiche del sonno.
-    
+
     Genera un grafico combinato che mostra:
     - Numero totale di notti analizzate
     - Statistiche tempo totale di sonno (media, mediana, min, max)
     - Statistiche risvegli notturni
     - Statistiche uscite dal letto
-    
+
     Args:
         result: Risultato del tool analyze_sleep_statistics
-        
+
     Returns:
         GraphData con il grafico Plotly in formato JSON, oppure ErrorResult
     """
     try:
-        # Crea subplot con 2 righe e 2 colonne
+        # Crea subplot con 2 righe e 2 colonne per gli indicator cards
         fig = make_subplots(
             rows=2, cols=2,
-            subplot_titles=(
-                "Tempo Totale di Sonno (minuti)",
-                "Risvegli Notturni",
-                "Uscite dal Letto",
-                f"Notti Analizzate: {result['num_nights']}"
-            ),
             specs=[
-                [{"type": "bar"}, {"type": "bar"}],
-                [{"type": "bar"}, {"type": "indicator"}]
+                [{"type": "indicator"}, {"type": "indicator"}],
+                [{"type": "indicator"}, {"type": "indicator"}]
             ],
-            vertical_spacing=0.15,
-            horizontal_spacing=0.12
+            vertical_spacing=0.2,
+            horizontal_spacing=0.15
         )
-        
-        # Subplot 1: Tempo totale di sonno
+
+        # Card 1: Tempo totale di sonno
         sleep_time_stats = result["total_sleep_time"]
         fig.add_trace(
-            go.Bar(
-                x=["Media", "Mediana", "Min", "Max"],
-                y=[
-                    sleep_time_stats["average"],
-                    sleep_time_stats["median"],
-                    sleep_time_stats["min"],
-                    sleep_time_stats["max"]
-                ],
-                marker_color=["#3b82f6", "#06b6d4", "#f59e0b", "#ef4444"],
-                text=[
-                    f"{sleep_time_stats['average']:.0f}",
-                    f"{sleep_time_stats['median']:.0f}",
-                    f"{sleep_time_stats['min']:.0f}",
-                    f"{sleep_time_stats['max']:.0f}"
-                ],
-                textposition="auto",
-                name="Tempo Sonno"
+            go.Indicator(
+                mode="number+delta",
+                value=sleep_time_stats["average"],
+                title={
+                    "text": f"Tempo Sonno Medio<br><span style='font-size:0.8em'>Min: {sleep_time_stats['min']:.0f} | Max: {sleep_time_stats['max']:.0f}</span>",
+                    "font": {"size": 18}
+                },
+                number={
+                    "suffix": " min",
+                    "font": {"size": 50, "color": "#3b82f6"}
+                },
+                domain={"x": [0, 1], "y": [0, 1]}
             ),
             row=1, col=1
         )
-        
-        # Subplot 2: Risvegli notturni
+
+        # Card 2: Risvegli notturni
         wakeup_stats = result["wakeup_count"]
         fig.add_trace(
-            go.Bar(
-                x=["Media", "Mediana", "Min", "Max"],
-                y=[
-                    wakeup_stats["average"],
-                    wakeup_stats["median"],
-                    wakeup_stats["min"],
-                    wakeup_stats["max"]
-                ],
-                marker_color=["#8b5cf6", "#a78bfa", "#c4b5fd", "#ddd6fe"],
-                text=[
-                    f"{wakeup_stats['average']:.1f}",
-                    f"{wakeup_stats['median']:.1f}",
-                    f"{wakeup_stats['min']:.0f}",
-                    f"{wakeup_stats['max']:.0f}"
-                ],
-                textposition="auto",
-                name="Risvegli"
+            go.Indicator(
+                mode="number",
+                value=wakeup_stats["average"],
+                title={
+                    "text": f"Risvegli Medi<br><span style='font-size:0.8em'>Min: {wakeup_stats['min']:.0f} | Max: {wakeup_stats['max']:.0f}</span>",
+                    "font": {"size": 18}
+                },
+                number={
+                    "font": {"size": 50, "color": "#8b5cf6"}
+                },
+                domain={"x": [0, 1], "y": [0, 1]}
             ),
             row=1, col=2
         )
-        
-        # Subplot 3: Uscite dal letto
+
+        # Card 3: Uscite dal letto
         out_of_bed_stats = result["out_of_bed_count"]
         fig.add_trace(
-            go.Bar(
-                x=["Media", "Mediana", "Min", "Max"],
-                y=[
-                    out_of_bed_stats["average"],
-                    out_of_bed_stats["median"],
-                    out_of_bed_stats["min"],
-                    out_of_bed_stats["max"]
-                ],
-                marker_color=["#10b981", "#34d399", "#6ee7b7", "#a7f3d0"],
-                text=[
-                    f"{out_of_bed_stats['average']:.1f}",
-                    f"{out_of_bed_stats['median']:.1f}",
-                    f"{out_of_bed_stats['min']:.0f}",
-                    f"{out_of_bed_stats['max']:.0f}"
-                ],
-                textposition="auto",
-                name="Uscite"
+            go.Indicator(
+                mode="number",
+                value=out_of_bed_stats["average"],
+                title={
+                    "text": f"Uscite Medie<br><span style='font-size:0.8em'>Min: {out_of_bed_stats['min']:.0f} | Max: {out_of_bed_stats['max']:.0f}</span>",
+                    "font": {"size": 18}
+                },
+                number={
+                    "font": {"size": 50, "color": "#10b981"}
+                },
+                domain={"x": [0, 1], "y": [0, 1]}
             ),
             row=2, col=1
         )
-        
-        # Subplot 4: Indicatore numero notti
+
+        # Card 4: Numero notti
         fig.add_trace(
             go.Indicator(
                 mode="number",
                 value=result["num_nights"],
-                title={"text": "Notti Totali"},
-                number={"font": {"size": 60, "color": "#3b82f6"}},
+                title={
+                    "text": "Notti Analizzate",
+                    "font": {"size": 18}
+                },
+                number={
+                    "font": {"size": 60, "color": "#f59e0b"}
+                },
                 domain={"x": [0, 1], "y": [0, 1]}
             ),
             row=2, col=2
         )
-        
+
         # Layout
         fig.update_layout(
-            title_text=f"Statistiche Sonno - Soggetto {result['subject_id']}<br><sub>Periodo: {result['period']}</sub>",
-            title_font_size=18,
-            showlegend=False,
-            height=700,
-            template="plotly_white"
+            title_font_size=20,
+            height=600,
+            template="plotly_white",
+            margin=dict(t=100, b=50, l=50, r=50)
         )
-        
-        # Aggiorna assi
-        fig.update_xaxes(title_text="Statistiche", row=1, col=1)
-        fig.update_yaxes(title_text="Minuti", row=1, col=1)
-        
-        fig.update_xaxes(title_text="Statistiche", row=1, col=2)
-        fig.update_yaxes(title_text="Numero", row=1, col=2)
-        
-        fig.update_xaxes(title_text="Statistiche", row=2, col=1)
-        fig.update_yaxes(title_text="Numero", row=2, col=1)
-        
+
         graph_data: GraphData = {
             "id": f"sleep_stats_{result['subject_id']}",
             "title": f"Statistiche Sonno - Soggetto {result['subject_id']}",
             "type": "sleep_statistics",
             "plotly_json": fig.to_dict()
         }
-        
+
         return graph_data
-        
+
     except Exception as e:
         return ErrorResult(error=f"Errore nella visualizzazione statistiche sonno: {str(e)}")
 

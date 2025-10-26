@@ -16,96 +16,124 @@ from backend.models.state import GraphData
 
 @tool
 def visualize_kitchen_statistics(
-    result: Annotated[KitchenStatisticsResult, "Result from analyze_kitchen_statistics tool"]
+        result: Annotated[KitchenStatisticsResult, "Result from analyze_kitchen_statistics tool"]
 ) -> GraphData | ErrorResult:
     """
     Crea una visualizzazione per le statistiche delle attività in cucina.
-    
+
     Genera un grafico combinato che mostra:
     - Numero totale di attività nel periodo
     - Numero di giorni analizzati
     - Statistiche delle attività giornaliere (media, mediana, min, max)
-    
+
     Args:
         result: Risultato del tool analyze_kitchen_statistics
-        
+
     Returns:
         GraphData con il grafico Plotly in formato JSON, oppure ErrorResult
     """
     try:
-        # Crea subplot con 2 righe
+        # Crea subplot con 2 righe e 3 colonne per gli indicator cards
         fig = make_subplots(
-            rows=2, cols=1,
-            subplot_titles=(
-                f"Panoramica Periodo: {result['period']}",
-                "Distribuzione Attività Giornaliere"
-            ),
-            specs=[[{"type": "bar"}], [{"type": "bar"}]],
-            vertical_spacing=0.15
+            rows=2, cols=3,
+            specs=[
+                [{"type": "indicator"}, {"type": "indicator"}, {"type": "indicator"}],
+                [{"type": "indicator"}, {"type": "indicator"}, {"type": "indicator"}]
+            ],
+            vertical_spacing=0.2,
+            horizontal_spacing=0.12
         )
-        
-        # Prima riga: Totale attività e giorni
+
+        # Card 1: Totale attività
         fig.add_trace(
-            go.Bar(
-                x=["Totale Attività", "Giorni Analizzati"],
-                y=[result["total_activities"], result["num_days"]],
-                marker_color=["#3b82f6", "#8b5cf6"],
-                text=[result["total_activities"], result["num_days"]],
-                textposition="auto",
-                name="Panoramica"
+            go.Indicator(
+                mode="number",
+                value=result["total_activities"],
+                title={
+                    "text": "Totale Attività",
+                    "font": {"size": 18}
+                },
+                number={
+                    "font": {"size": 50, "color": "#3b82f6"}
+                },
+                domain={"x": [0, 1], "y": [0, 1]}
             ),
             row=1, col=1
         )
-        
-        # Seconda riga: Statistiche attività per giorno
+
+
+        # Card 3: Media attività per giorno
         activities_stats = result["activities_per_day"]
         fig.add_trace(
-            go.Bar(
-                x=["Media", "Mediana", "Min", "Max"],
-                y=[
-                    activities_stats["average"],
-                    activities_stats["median"],
-                    activities_stats["min"],
-                    activities_stats["max"]
-                ],
-                marker_color=["#10b981", "#06b6d4", "#f59e0b", "#ef4444"],
-                text=[
-                    f"{activities_stats['average']:.1f}",
-                    f"{activities_stats['median']:.1f}",
-                    f"{activities_stats['min']:.0f}",
-                    f"{activities_stats['max']:.0f}"
-                ],
-                textposition="auto",
-                name="Attività/Giorno"
+            go.Indicator(
+                mode="number",
+                value=activities_stats["average"],
+                title={
+                    "text": "Media Attività/Giorno",
+                    "font": {"size": 18}
+                },
+                number={
+                    "font": {"size": 50, "color": "#10b981"},
+                    "valueformat": ".1f"
+                },
+                domain={"x": [0, 1], "y": [0, 1]}
             ),
-            row=2, col=1
+            row=1, col=3
         )
-        
+
+        # Card 5: Min attività per giorno
+        fig.add_trace(
+            go.Indicator(
+                mode="number",
+                value=activities_stats["min"],
+                title={
+                    "text": f"Min Attività/Giorno",
+                    "font": {"size": 18}
+                },
+                number={
+                    "font": {"size": 50, "color": "#f59e0b"}
+                },
+                domain={"x": [0, 1], "y": [0, 1]}
+            ),
+            row=2, col=2
+        )
+
+        # Card 6: Max attività per giorno
+        fig.add_trace(
+            go.Indicator(
+                mode="number",
+                value=activities_stats["max"],
+                title={
+                    "text": f"Max Attività/Giorno",
+                    "font": {"size": 18}
+                },
+                number={
+                    "font": {"size": 50, "color": "#ef4444"}
+                },
+                domain={"x": [0, 1], "y": [0, 1]}
+            ),
+            row=2, col=3
+        )
+
         # Layout
         fig.update_layout(
-            showlegend=False,
+            title_font_size=20,
             height=600,
-            template="plotly_white"
+            template="plotly_white",
+            margin=dict(t=100, b=50, l=50, r=50)
         )
-        
-        fig.update_xaxes(title_text="Metriche", row=1, col=1)
-        fig.update_yaxes(title_text="Valore", row=1, col=1)
-        
-        fig.update_xaxes(title_text="Statistiche", row=2, col=1)
-        fig.update_yaxes(title_text="Attività per Giorno", row=2, col=1)
-        
+
         graph_data: GraphData = {
             "id": f"kitchen_stats_{result['subject_id']}",
             "title": f"Statistiche Attività Cucina - Soggetto {result['subject_id']}",
             "type": "kitchen_statistics",
             "plotly_json": fig.to_dict()
         }
-        
+
         return graph_data
-        
+
     except Exception as e:
         return ErrorResult(error=f"Errore nella visualizzazione statistiche cucina: {str(e)}")
-
 
 @tool
 def visualize_kitchen_usage_pattern(
