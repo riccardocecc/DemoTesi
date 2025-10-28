@@ -30,9 +30,6 @@ if "is_loading" not in st.session_state:
 # Custom CSS
 st.markdown("""
     <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-
     .stTextInput > div > div > input {
         border-radius: 20px;
     }
@@ -89,7 +86,6 @@ st.markdown("""
     }
     </style>
     """, unsafe_allow_html=True)
-
 # Header
 st.title("Demo multi agent")
 st.markdown("---")

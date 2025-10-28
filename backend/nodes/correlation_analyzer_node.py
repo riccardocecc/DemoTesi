@@ -75,10 +75,11 @@ def create_correlation_analyzer_node(llm):
 
         # Ricostruisci la domanda originale dalle task
         if all_tasks:
-            original_question = " e ".join(all_tasks)
+            original_question = " Crea un analisi per eventuali correlazioni tra queste due task: ".join(all_tasks)
         else:
             original_question = state.get("original_question", "Analisi dati")
 
+        print("ORIGINAL QUESTION: " + original_question)
 
         # Log dei grafici disponibili
         if graphs:
