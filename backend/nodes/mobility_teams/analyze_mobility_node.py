@@ -13,13 +13,46 @@ from backend.tools.mobility_tools import analyze_mobility_patterns
 
 
 def create_analyze_mobility_agent(llm):
+    """
+    Crea l'agente ReAct per l'analisi della mobilità.
+
+    L'agente ha accesso a tool specializzato:
+    1. analyze_mobility_patterns: analisi dei pattern di movimento in casa
+    """
     tools = [analyze_mobility_patterns]
-    return create_react_agent(llm, tools=tools)
+
+    system_message = (
+        "You are a specialized agent for analyzing home mobility patterns.\n\n"
+        "AVAILABLE TOOLS:\n"
+        "1. analyze_mobility_patterns: Use this to analyze movement patterns within the home. "
+        "Call this when the user asks for:\n"
+        "   - Room usage and distribution\n"
+        "   - Movement frequency and patterns\n"
+        "   - Time spent in different areas\n"
+        "   - Activity levels throughout the day\n"
+        "   - Mobility trends over time\n\n"
+        "IMPORTANT RULES:\n"
+        "- Always extract subject_id and period from the user's request\n"
+        "- Use the same subject_id and period for all tool calls\n"
+        "- Focus only on environmental sensor data (PIR sensors)\n\n"
+        "EXAMPLES:\n"
+        "Query: 'Analyze mobility of subject 2 in last 4 days'\n"
+        "→ Call analyze_mobility_patterns with subject_id=2, period='last_4_days'\n\n"
+        "Query: 'What rooms does subject 1 use most?'\n"
+        "→ Call analyze_mobility_patterns with subject_id=1\n"
+    )
+
+    return create_react_agent(llm, tools=tools, prompt=system_message)
 
 
 def create_analyze_mobility_node(analyze_mobility_agent):
+    """
+    Nodo che coordina l'agente di analisi della mobilità.
+    Raccoglie TUTTI i risultati dei tool chiamati dall'agente.
+    """
+
     def _node(state: State) -> Command[Literal["mobility_team_supervisor"]]:
-        # Estrai task
+        # Estrai task dal supervisor
         task = None
         for msg in reversed(state["messages"]):
             if hasattr(msg, 'name') and msg.name == "supervisor_instruction":
@@ -29,17 +62,21 @@ def create_analyze_mobility_node(analyze_mobility_agent):
         print(f"DEBUG - Mobility agent received task: '{task}'")
         message = task or "Analizza la mobilità del soggetto richiesto."
 
-
+        # Invoca l'agente
         try:
-            result = invoke_with_retry(analyze_mobility_agent, [HumanMessage(content=message)], 3)
+            result = invoke_with_retry(analyze_mobility_agent, [HumanMessage(content=message)])
         except exceptions.ResourceExhausted as e:
             print(f"Failed after all retries: {e}")
+
+        print("CHIAMATA LLM")
         print("result " + str(result))
 
+        # Raccoglie TUTTI i risultati dai ToolMessage
+        all_results = []
 
-        agent_data: MobilityAnalysisResult | ErrorResult | None = None
         for msg in result["messages"]:
             if isinstance(msg, ToolMessage):
+                # Parse del contenuto
                 if isinstance(msg.content, dict):
                     raw_data = msg.content
                 elif isinstance(msg.content, str):
@@ -50,27 +87,33 @@ def create_analyze_mobility_node(analyze_mobility_agent):
                 else:
                     raw_data = {"error": f"Formato risposta non valido: {type(msg.content)}"}
 
-                if "error" in raw_data:
-                    agent_data = raw_data
-                else:
-                    agent_data = raw_data
-                break
+                # Aggiungi il risultato alla lista
+                all_results.append(raw_data)
 
-        if not agent_data:
+        # Se non ci sono risultati, genera errore
+        if not all_results:
             agent_data = {"error": "Nessuna risposta dall'agente mobility"}
+        elif len(all_results) == 1:
+            # Un solo tool chiamato - usa direttamente il risultato
+            agent_data = all_results[0]
+        else:
+            # Multipli tool chiamati - crea un dizionario aggregato
+            agent_data = {
+                "results": all_results,
+                "num_analyses": len(all_results)
+            }
 
-
+        # Crea AgentResponse
         agent_response: AgentResponse = {
             "task": message,
             "agent_name": "mobility_agent",
             "data": agent_data
         }
 
-        print(f"DEBUG - Mobility agent response type: {type(agent_response['data'])}")
+        print(f"DEBUG - Mobility agent response: {len(all_results)} result(s) collected")
 
-
+        # Aggiorna state
         current_responses = state.get("structured_responses", [])
-
 
         mobility_team_response = None
         for team_resp in current_responses:
@@ -78,19 +121,15 @@ def create_analyze_mobility_node(analyze_mobility_agent):
                 mobility_team_response = team_resp
                 break
 
-
         if mobility_team_response:
-
             mobility_team_response["structured_responses"].append(agent_response)
             updated_responses = current_responses
         else:
-
             new_team_response: TeamResponse = {
                 "structured_responses": [agent_response],
                 "team_name": "mobility_team"
             }
             updated_responses = current_responses + [new_team_response]
-
 
         completed_tasks = state.get("completed_tasks", set())
         completed_tasks.add(task)
@@ -99,7 +138,7 @@ def create_analyze_mobility_node(analyze_mobility_agent):
             update={
                 "structured_responses": updated_responses,
                 "completed_tasks": completed_tasks,
-                "messages": [HumanMessage(content=f"Mobility completed: {task}", name="mobility_node_response")]
+                "messages": [HumanMessage(content=f"MobilityNode completed: {task}", name="mobility_node_response")],
             },
             goto="mobility_team_supervisor"
         )
